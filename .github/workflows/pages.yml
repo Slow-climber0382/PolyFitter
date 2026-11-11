@@ -1,4 +1,4 @@
-name: Publish Meshavon web
+name: Publish PolyFitter web
 on:
   workflow_dispatch:
   push:

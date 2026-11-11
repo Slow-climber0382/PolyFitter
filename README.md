@@ -1,14 +1,14 @@
-# Meshavon
+# PolyFitter
 
 [Polski — Przeczytaj mnie](PRZECZYTAJ_MNIE.md)
 
 Open-source, browser-based tools for fitting 3D armor and props to body measurements.
-Meshavon is an early development release (0.6.1), formerly named ForgeFit.
+PolyFitter is an early development release (0.6.2), formerly named Meshavon and ForgeFit.
 
 ## Use the app
 
-The intended GitHub Pages address is https://slow-climber0382.github.io/Meshavon/.
-It becomes available after the repository owner enables Pages and a deployment succeeds.
+The intended GitHub Pages address is https://slow-climber0382.github.io/PolyFitter/.
+It becomes available after the repository owner renames the repository to `PolyFitter`, enables Pages and a deployment succeeds.
 No installation, account, backend, or model upload service is required to use the app.
 Models and measurements are processed in your browser. Save projects regularly: closing
 or refreshing the tab discards unsaved work. Downloads are controlled by your browser.
@@ -23,7 +23,7 @@ The current interface is Polish; English and further translations are planned.
 - Approximate collision, fit-color and helmet insertion checks; optional top padding.
 - Multi-part projects and helmet assemblies with shared transforms.
 - Undo/redo (40 changes), including measurements, transforms and part import/removal.
-- Project download/reopen, including legacy `.forgefit` projects; new files use `.meshavon`.
+- Project download/reopen, including legacy `.meshavon` and `.forgefit` projects; new files use `.polyfitter`.
 - STL export in millimeters, and an existing experimental capped planar split for printing.
 
 Use left drag to orbit, right drag to pan and the wheel to zoom. Six standard views,

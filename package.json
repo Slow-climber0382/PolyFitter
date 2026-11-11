@@ -1,6 +1,6 @@
 {
-  "name": "meshavon",
-  "version": "0.6.1",
+  "name": "polyfitter",
+  "version": "0.6.2",
   "private": true,
   "description": "Browser-based 3D armor and prop fitting",
   "license": "Apache-2.0",

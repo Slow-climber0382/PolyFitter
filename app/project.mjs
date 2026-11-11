@@ -16,7 +16,7 @@ export const freshProfile=()=>({
 });
 const valid=(n,min,max)=>typeof n==='number'&&Number.isFinite(n)&&n>=min&&n<=max;
 const triple=(items,min,max)=>Array.isArray(items)&&items.length===3&&items.every(n=>valid(n,min,max));
-const fail=()=>{throw Error('Nieprawidłowy lub nieobsługiwany projekt Meshavon.');};
+const fail=()=>{throw Error('Nieprawidłowy lub nieobsługiwany projekt PolyFitter.');};
 export function packProject(profile,parts,active) {
   const data={version:1,profile,active,parts:parts.map(part=>({
     name:part.name,region:part.region,transform:part.transform,...(part.group?{group:part.group}:{}),

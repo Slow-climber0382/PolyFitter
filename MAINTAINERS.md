@@ -4,6 +4,7 @@ The integration can upload code but does not expose repository administration wr
 These settings must be verified in GitHub; their presence in this document does not
 mean they are enabled.
 
+0. Rename the repository in Settings → General → Repository name → `PolyFitter`. Update the upstream repository links in README, PRZECZYTAJ_MNIE and NOTICE after renaming.
 1. For public open-source access, Settings → General → Change repository visibility → Public.
 2. Settings → Pages → Build and deployment → Source: GitHub Actions.
 3. Settings → Branches → protect `main` (or an active branch ruleset targeting main):

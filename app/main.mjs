@@ -216,7 +216,7 @@ $('projectFile').onchange=event=>fileAction(event,async file=>{
   const restored=openProject(await file.text());
   ({profile,parts,active}=restored);
   region=selected()?.region||'head';viewRegion='full';pose='side';
-  projectName=file.name.replace(/\.(forgefit|meshavon)$/i,'')||'Projekt';setDirty(false);pendingHistory=false;history.reset(historyState());sync();status('Projekt wczytany.');
+  projectName=file.name.replace(/\.(forgefit|meshavon|polyfitter)$/i,'')||'Projekt';setDirty(false);pendingHistory=false;history.reset(historyState());sync();status('Projekt wczytany.');
 });
 for(const id of ['import','emptyImport'])$(id).onclick=()=>$('modelFile').click();
 $('open').onclick=()=>$('projectFile').click();
@@ -296,10 +296,10 @@ $('reset').onclick=()=>{
   const part=selected();if(!part)return;
   part.transform={...identity(),rotate:[...part.transform.rotate]};setDirty();sync();status('Przywrócono skalę i położenie.');
 };
-function safeName(name){return name.replace(/[<>:"/\\|?*\x00-\x1f]/g,'_').trim().slice(0,120)||'Meshavon';}
+function safeName(name){return name.replace(/[<>:"/\\|?*\x00-\x1f]/g,'_').trim().slice(0,120)||'PolyFitter';}
 $('save').onclick=async()=>{
   try{
-    if(await window.forgefit.save(safeName(projectName)+'.meshavon',packProject(profile,parts,active))){
+    if(await window.forgefit.save(safeName(projectName)+'.polyfitter',packProject(profile,parts,active))){
       setDirty(false);status('Rozpoczęto pobieranie projektu. Sprawdź pobrane pliki przeglądarki.');
     }
   }catch(error){status(error.message);$('importReport').textContent=error.message;}

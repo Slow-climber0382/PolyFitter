@@ -1,13 +1,13 @@
-# Meshavon — Przeczytaj mnie
+# PolyFitter — Przeczytaj mnie
 
 [English README](README.md)
 
 Otwartoźródłowa aplikacja przeglądarkowa do dopasowywania modeli 3D zbroi i rekwizytów
-do wymiarów użytkownika. Wczesna wersja 0.6.1; poprzednia nazwa robocza: ForgeFit.
+do wymiarów użytkownika. Wczesna wersja 0.6.2; poprzednia nazwa robocza: ForgeFit.
 
 ## Uruchomienie
 
-Docelowy adres: https://slow-climber0382.github.io/Meshavon/ — zacznie działać po
+Docelowy adres: https://slow-climber0382.github.io/PolyFitter/ — zacznie działać po zmianie nazwy repozytorium na `PolyFitter` i
 włączeniu GitHub Pages i udanej publikacji. Program przetwarza modele i pomiary
 lokalnie w przeglądarce. Nie wymaga konta ani przesyłania STL na serwer.
 Zapisuj projekty: zamknięcie lub odświeżenie karty usuwa niezapisane zmiany.
@@ -22,7 +22,7 @@ Interfejs jest obecnie po polsku; pozostałe języki są planowane.
 - Przybliżona kontrola kolizji, mapa dopasowania i próba wsunięcia hełmu; pianka na czubku.
 - Wiele części w projekcie i wspólne transformacje zestawów hełmu.
 - Cofnij/Ponów do 40 zmian, również pomiarów oraz importu/usunięcia części.
-- Zapis i odczyt `.meshavon`, odczyt wcześniejszych `.forgefit`, eksport STL w mm.
+- Zapis i odczyt `.polyfitter`, odczyt wcześniejszych `.meshavon` i `.forgefit`, eksport STL w mm.
 - Eksperymentalny podział płaszczyznami na zamknięte części do druku.
 
 LPM obraca, PPM przesuwa, rolka przybliża. Dostępne są sześć rzutów i kadrowanie.

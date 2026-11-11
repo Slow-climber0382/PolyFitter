@@ -4,12 +4,12 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self'; connect-src 'none'; object-src 'none'; base-uri 'none'">
-<title>Meshavon</title>
+<title>PolyFitter</title>
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
 <header class="top">
-  <div class="brand"><img src="icon.svg" alt=""><div><strong>Meshavon</strong><span>Studio dopasowania</span></div></div>
+  <div class="brand"><img src="icon.svg" alt=""><div><strong>PolyFitter</strong><span>Studio dopasowania</span></div></div>
   <div class="project-title" id="projectTitle">Nowy projekt</div>
   <nav aria-label="Projekt"><button id="undo" disabled title="Ctrl+Z">Cofnij</button><button id="redo" disabled title="Ctrl+Shift+Z">Ponów</button><button id="newProject">Nowy</button><button id="open">Otwórz projekt</button><button id="save">Zapisz projekt</button><button class="accent" id="export" disabled>Eksport STL</button></nav>
 </header>
@@ -115,7 +115,7 @@
 <footer><span id="status" role="status">Gotowe</span><span id="sizeStatus">Jednostki projektu: mm</span><span class="local">● Lokalnie</span></footer>
 <input id="kitFiles" type="file" accept=".stl" multiple hidden>
 <input id="modelFile" type="file" accept=".stl" hidden>
-<input id="projectFile" type="file" accept=".meshavon,.forgefit" hidden>
+<input id="projectFile" type="file" accept=".polyfitter,.meshavon,.forgefit" hidden>
 <script type="module" src="main.mjs"></script>
 </body>
 </html>

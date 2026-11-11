@@ -55,7 +55,7 @@ export function centerMesh(mesh, unit=1) {
 }
 export function writeSTL(mesh){
   const file=new ArrayBuffer(84+mesh.length/9*50), view=new DataView(file);
-  new Uint8Array(file).set(new TextEncoder().encode('Meshavon | millimetres'));
+  new Uint8Array(file).set(new TextEncoder().encode('PolyFitter | millimetres'));
   view.setUint32(80,mesh.length/9,true);
   for(let i=0;i<mesh.length;i+=9){
     const a=mesh.subarray(i,i+3),b=mesh.subarray(i+3,i+6),c=mesh.subarray(i+6,i+9);
