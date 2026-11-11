@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="pl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self'; connect-src 'none'; object-src 'none'; base-uri 'none'">
+<title>Meshavon</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="top">
+  <div class="brand"><img src="icon.svg" alt=""><div><strong>Meshavon</strong><span>Studio dopasowania</span></div></div>
+  <div class="project-title" id="projectTitle">Nowy projekt</div>
+  <nav aria-label="Projekt"><button id="undo" disabled title="Ctrl+Z">Cofnij</button><button id="redo" disabled title="Ctrl+Shift+Z">Ponów</button><button id="newProject">Nowy</button><button id="open">Otwórz projekt</button><button id="save">Zapisz projekt</button><button class="accent" id="export" disabled>Eksport STL</button></nav>
+</header>
+<main>
+  <aside class="library" aria-label="Elementy projektu">
+    <div class="panel-header"><h2>Elementy</h2><span id="partCount" class="pill">0</span></div>
+    <div class="library-tools">
+      <button id="import" class="primary-wide">＋ Importuj STL</button>
+      <label class="inline-field">Jednostki pliku <select id="units"><option value="1">mm</option><option value="10">cm</option><option value="25.4">cale</option></select></label>
+    </div>
+    <p id="importReport" class="hint" role="status"></p>
+    <ul id="parts" class="parts"></ul>
+    <div class="library-bottom"><button id="importKit">Importuj zestaw hełmu</button><button id="demo">Otwórz przykładowy hełm</button><button id="remove" disabled>Usuń zaznaczony element</button></div>
+  </aside>
+  <section class="workspace" aria-label="Widok 3D">
+    <div class="viewport-top"><div><span class="eyebrow">PRZESTRZEŃ ROBOCZA</span><h1 id="viewTitle">Widok 3D</h1></div><button id="editMeasurements">Dodaj własne wymiary do…</button><span id="regionPill" class="pill">Głowa</span></div>
+    <div class="viewer">
+      <canvas id="viewport" tabindex="0" aria-label="Model 3D. Strzałki obracają widok, plus i minus zmieniają powiększenie."></canvas>
+      <div class="view-tools" aria-label="Sterowanie widokiem">
+        <button data-view="front">Przód</button><button data-view="left">Lewo</button><button data-view="right">Prawo</button><button data-view="top">Góra</button><button data-view="bottom">Dół</button><button data-view="back">Tył</button><button data-view="reset">Reset kamery</button><button data-view="all">Cały widok</button><button data-view="selected">Zaznaczony</button>
+      </div>
+      <div class="pose-tools">
+        <label>Widok <select id="previewRegion"></select></label>
+        <label>Poza <select id="pose"></select></label>
+      </div>
+      <div id="poseHint" class="pose-hint" hidden>Podgląd pozy · dopasowanie w ustawieniu neutralnym</div>
+      <div class="legend"><span></span> Manekin</div>
+      <div class="empty" id="empty"><span class="empty-icon">◇</span><strong>Dodaj element zbroi</strong><p>Zaimportuj STL albo sprawdź dopasowanie na przykładowym hełmie.</p><button id="emptyImport" class="accent">Importuj model</button></div>
+      <div class="render-error" id="renderError" hidden></div>
+    </div>
+    <div class="viewport-bottom"><div class="view-options"><button data-view="xray" aria-pressed="false">Prześwietlenie</button><button data-view="section" aria-pressed="false">Przekrój</button><button data-view="body" aria-pressed="true">Manekin</button></div><span>LPM: obrót · PPM: przesunięcie · rolka: zoom</span></div>
+  </section>
+  <section id="measurePanel" class="measure-panel" aria-label="Własne wymiary manekina" hidden>
+      <div class="panel-header"><h2>Własne wymiary</h2><button id="closeMeasurements" aria-label="Zamknij wymiary">✕</button></div>
+      <div class="inspector-content">
+        <label>Dodaj własne wymiary do…<select id="measureTarget"></select></label>
+        <p class="hint">Wszystkie wymiary w milimetrach. Najpierw ustaw typ sylwetki i wzrost. Obwody mierz taśmą bez luzu, na rozluźnionym ciele. Prawa i lewa strona mają osobne wartości.</p>
+        <div id="personalFields" class="two"></div>
+        <p id="measureError" role="status"></p>
+        <p class="hint">Wymiary kształtują przybliżony manekin. Sam obwód nie określa dokładnego przekroju ciała. Sprawdź sylwetkę z przodu i z boku.</p>
+      </div>
+    </section>
+  <aside class="inspector" aria-label="Dopasowanie">
+    <div class="panel-header"><h2>Dopasowanie</h2><span class="pill">mm</span></div>
+    <div class="inspector-content">
+      <section>
+        <label class="stacked">Część ciała<select id="region"><option value="head">Głowa / hełm</option><option value="chest">Klatka piersiowa / napierśnik</option><option value="shin">Goleń / ochraniacz</option></select></label>
+        <div class="two" id="shinStyleField" hidden>
+          <label>Typ ochraniacza<select id="shinStyle"></select></label>
+          <label>Noga<select id="shinSide"><option value="L">Lewa</option><option value="R">Prawa</option></select></label>
+        </div>
+        <h3>Pomiary ciała</h3>
+        <div id="headQuick" class="two">
+          <label>Wysokość głowy<input id="headHeight" type="number" min="100" max="360" step="1"></label>
+          <label>Obwód głowy<input id="headCirc" type="number" min="300" max="1000" step="1"></label>
+        </div>
+        <div id="bodyQuick" class="two">
+          <label>Typ manekina<select id="bodyType"></select></label>
+          <label>Wzrost osoby<input id="stature" type="number" min="800" max="2500" step="1"></label>
+        </div>
+        <label class="inline-field gap">Luz na stronę <input id="gap" type="number" min="0" max="100" step="0.5"></label>
+        <details id="advancedMeasurements">
+          <summary>Pomiary szczegółowe</summary>
+          <div class="three" id="dimensions">
+            <label>Szerokość<input id="dim0" type="number" min="10" max="2000" step="1"></label>
+            <label id="heightDetail">Wysokość<input id="dim1" type="number" min="10" max="2000" step="1"></label>
+            <label>Głębokość<input id="dim2" type="number" min="10" max="2000" step="1"></label>
+          </div>
+          <div id="detailFields" class="two"></div>
+          <button id="clearDetails" type="button">Przywróć proporcje szczegółowe</button>
+        </details>
+        <p class="hint" id="regionHint"></p><details><summary>Wymiary uzyskane na siatce</summary><p id="anatomyAudit" class="hint"></p></details>
+        <label class="lock"><input id="solvePlacement" type="checkbox" checked>Szukaj położenia wewnątrz hełmu</label>
+        <button class="accent primary-wide" id="fit" disabled>✦ Dopasuj automatycznie</button>
+        <div id="fitReport" class="fit-report" aria-live="polite">Dodaj model, aby sprawdzić dopasowanie.</div>
+        <button id="entryCheck" hidden>Sprawdź otwór hełmu</button>
+        <div id="helmetTools">
+          <label>Pianka tylko na czubku · mm<input id="foamTop" type="number" min="0" max="40" step="0.5" value="0"></label>
+          <button id="noExtraGap">Tylko głowa + pianka (luz 0)</button>
+          <div class="two"><button id="moveUp">↑ 1 mm</button><button id="moveDown">↓ 1 mm</button><button id="moveFront">Przód +1 mm</button><button id="moveBack">Tył −1 mm</button><button id="tiltUp">Pochyl +1°</button><button id="tiltDown">Pochyl −1°</button></div>
+          <label class="lock"><input type="checkbox" id="heatmap">Mapa dopasowania</label>
+          <p class="hint" id="heatmapLegend" hidden>Czerwony: za ciasno · zielony: zadany luz do +10 mm · niebieski: większy luz. Ocena otoczki, nie nacisku.</p>
+          <button id="exportKit">Eksportuj pliki zestawu</button>
+          <label>Limit części · mm<input id="printLimit" type="number" min="100" max="250" value="245"></label>
+          <button id="splitPrint">Podziel i eksportuj do druku</button>
+          <p class="hint">Kobra S1 · 250 × 250 × 250 mm. Limit 245 mm zostawia 5 mm zapasu. Płaskie łączenia do klejenia; orientację i podpory sprawdź w slicerze.</p>
+        </div>
+
+      </section>
+      <section>
+        <h3>Ręczna korekta</h3><div class="two"><button id="zUp" disabled>STL: Z do góry</button><button id="flipFront" disabled>Odwróć przód/tył</button></div>
+        <label class="lock"><input type="checkbox" id="lockScale" checked> Skaluj proporcjonalnie</label>
+        <div id="transforms"></div>
+        <button id="reset" disabled>Przywróć skalę i położenie</button>
+      </section>
+      <section>
+        <h3>Kontrola modelu</h3>
+        <p class="hint" id="meshReport"></p>
+      </section>
+    </div>
+  </aside>
+</main>
+<footer><span id="status" role="status">Gotowe</span><span id="sizeStatus">Jednostki projektu: mm</span><span class="local">● Lokalnie</span></footer>
+<input id="kitFiles" type="file" accept=".stl" multiple hidden>
+<input id="modelFile" type="file" accept=".stl" hidden>
+<input id="projectFile" type="file" accept=".meshavon,.forgefit" hidden>
+<script type="module" src="main.mjs"></script>
+</body>
+</html>

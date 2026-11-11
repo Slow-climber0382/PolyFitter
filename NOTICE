@@ -1,0 +1,7 @@
+Meshavon
+Copyright 2026 Meshavon contributors
+Original project: https://github.com/Slow-climber0382/Meshavon
+
+Meshavon was originally developed under the working name ForgeFit.
+Third-party mannequin assets: MakeHuman (CC0); see ASSETS.md and LICENSE.MAKEHUMAN.md.
+Earcut triangulation: Mapbox (ISC); see app/vendor/LICENSE.earcut.
