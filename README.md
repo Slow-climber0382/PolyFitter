@@ -8,7 +8,7 @@ PolyFitter is an early development release (0.6.2), formerly named Meshavon and 
 ## Use the app
 
 The intended GitHub Pages address is https://slow-climber0382.github.io/PolyFitter/.
-It becomes available after the repository owner renames the repository to `PolyFitter`, enables Pages and a deployment succeeds.
+It becomes available after the repository owner enables Pages and a deployment succeeds.
 No installation, account, backend, or model upload service is required to use the app.
 Models and measurements are processed in your browser. Save projects regularly: closing
 or refreshing the tab discards unsaved work. Downloads are controlled by your browser.
@@ -87,7 +87,7 @@ We ask forks to provide a concrete change summary in their README or CHANGELOG;
 Apache 2.0 requires modified-file notices but does not require a detailed public changelog.
 It does not require forks to publish their source or obtain upstream approval.
 
-Original project: https://github.com/Slow-climber0382/Meshavon
+Original project: https://github.com/Slow-climber0382/PolyFitter
 
 MakeHuman mesh/rig/morph assets remain CC0; Earcut remains ISC. See [ASSETS.md](ASSETS.md).
 Earlier ForgeFit copies distributed under MIT retain their original license.

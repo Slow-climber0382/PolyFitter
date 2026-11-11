@@ -7,7 +7,7 @@ do wymiarów użytkownika. Wczesna wersja 0.6.2; poprzednia nazwa robocza: Forge
 
 ## Uruchomienie
 
-Docelowy adres: https://slow-climber0382.github.io/PolyFitter/ — zacznie działać po zmianie nazwy repozytorium na `PolyFitter` i
+Docelowy adres: https://slow-climber0382.github.io/PolyFitter/ — zacznie działać po
 włączeniu GitHub Pages i udanej publikacji. Program przetwarza modele i pomiary
 lokalnie w przeglądarce. Nie wymaga konta ani przesyłania STL na serwer.
 Zapisuj projekty: zamknięcie lub odświeżenie karty usuwa niezapisane zmiany.
@@ -79,7 +79,7 @@ Prosimy również o konkretny opis zmian w README lub CHANGELOG własnej wersji.
 Sama Apache 2.0 wymaga oznaczenia zmienionych plików, ale nie szczegółowego publicznego
 dziennika zmian. Nie wymaga publikowania kodu forka ani naszej zgody na jego wydanie.
 
-Projekt źródłowy: https://github.com/Slow-climber0382/Meshavon
+Projekt źródłowy: https://github.com/Slow-climber0382/PolyFitter
 
 Dane manekina MakeHuman pozostają na CC0, Earcut na ISC; szczegóły w [ASSETS.md](ASSETS.md).
 Wcześniejsze kopie ForgeFit udostępnione na MIT zachowują tę licencję.
