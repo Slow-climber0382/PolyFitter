@@ -55,12 +55,13 @@ export function cutPlane(mesh,axis,level){
  return halves.filter(a=>a.length).map(a=>Float32Array.from(a));
 }
 export function splitForPrinter(mesh,limit=245){
- if(limit<100||limit>250)throw Error('Limit musi wynosić 100–250 mm.');
+ const limits=typeof limit==='number'?[limit,limit,limit]:limit;
+ if(!Array.isArray(limits)||limits.length!==3||limits.some(v=>!Number.isFinite(v)||v<=0))throw Error('Wymiary obszaru druku muszą być dodatnimi, skończonymi liczbami.');
  if(!inspectMesh(mesh).closed)throw Error('Podział wymaga zamkniętej siatki bez zdegenerowanych trójkątów. Napraw STL przed cięciem.');
  const queue=[mesh],result=[];
  while(queue.length){
-  const part=queue.shift(),b=bounds(part),axis=b.size.indexOf(Math.max(...b.size));
-  if(b.size[axis]<=limit+.001){result.push(part);continue;}
+  const part=queue.shift(),b=bounds(part),ratios=b.size.map((v,i)=>v/limits[i]),axis=ratios.indexOf(Math.max(...ratios));
+  if(b.size.every((v,i)=>v<=limits[i]+.001)){result.push(part);continue;}
   if(result.length+queue.length>=63)throw Error('Za dużo części. Sprawdź skalę modelu.');
   // A tiny shift avoids planes passing exactly through common mesh vertices.
   const level=Math.round((b.center[axis]+.0137)*1e4)/1e4;

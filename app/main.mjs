@@ -130,6 +130,7 @@ function report(part,mesh,checkEntry){
 }
 function sync(checkEntry=false){
   const part=selected(),{dimensions,gap}=measurement();
+  ['printerX','printerY','printerZ'].forEach((id,i)=>$(id).value=profile.printer.size[i]);$('printerMargin').value=profile.printer.margin;
   if(part?.group)setKitTransform(parts,part,part.transform);
   $('solvePlacement').parentElement.hidden=region!=='head';$('helmetTools').hidden=region!=='head';$('foamTop').value=profile.head.foamTop??0;
   for(const id of ['moveUp','moveDown','moveFront','moveBack','tiltUp','tiltDown','exportKit','splitPrint'])$(id).disabled=!part;
@@ -348,10 +349,20 @@ $('exportKit').onclick=async()=>{
   if(await window.forgefit.saveBatch(members.map((p,i)=>({name:String(i+1)+'-'+safeName(p.name)+'.stl',data:writeSTL(transform(p.mesh,p.transform))}))))status('Zapisano zestaw STL ze wspólnymi współrzędnymi.');
  }catch(error){status(error.message);$('importReport').textContent=error.message;}
 };
+function readPrinter(){
+ const size=['printerX','printerY','printerZ'].map(id=>$(id).valueAsNumber),margin=$('printerMargin').valueAsNumber;
+ if(size.some(v=>!Number.isFinite(v)||v<=0)||!Number.isFinite(margin)||margin<0||size.some(v=>v<=margin)){
+  status('Podaj dodatnie wymiary drukarki i nieujemny zapas mniejszy od każdego wymiaru.');return null;
+ }
+ return {size,margin};
+}
+for(const id of ['printerX','printerY','printerZ','printerMargin'])$(id).onchange=()=>{
+ const printer=readPrinter();if(!printer)return;profile.printer=printer;setDirty();sync();
+};
 $('splitPrint').onclick=async()=>{
- const part=selected();if(!part||!readNumber($('printLimit'),100,250))return;
+ const part=selected(),printer=readPrinter();if(!part||!printer)return;
  try{
-  const pieces=splitForPrinter(transform(part.mesh,part.transform),$('printLimit').valueAsNumber);
+  const pieces=splitForPrinter(transform(part.mesh,part.transform),[printer.size[0],printer.size[2],printer.size[1]].map(v=>v-printer.margin));
   if(await window.forgefit.saveBatch(pieces.map((mesh,i)=>({name:safeName(part.name)+'-czesc-'+(i+1)+'.stl',data:writeSTL(mesh)}))))status(`Wyeksportowano ${pieces.length} szczelnych części. Wspólne współrzędne zachowano; ułóż części na stole w slicerze.`);
  }catch(error){status(error.message);$('importReport').textContent=error.message;}
 };

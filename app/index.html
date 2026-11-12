@@ -93,9 +93,14 @@
           <label class="lock"><input type="checkbox" id="heatmap">Mapa dopasowania</label>
           <p class="hint" id="heatmapLegend" hidden>Czerwony: za ciasno · zielony: zadany luz do +10 mm · niebieski: większy luz. Ocena otoczki, nie nacisku.</p>
           <button id="exportKit">Eksportuj pliki zestawu</button>
-          <label>Limit części · mm<input id="printLimit" type="number" min="100" max="250" value="245"></label>
+          <div class="three">
+            <label>Drukarka X · mm<input id="printerX" type="number" min="0.1" step="any" value="250"></label>
+            <label>Drukarka Y · mm<input id="printerY" type="number" min="0.1" step="any" value="250"></label>
+            <label>Drukarka Z · mm<input id="printerZ" type="number" min="0.1" step="any" value="250"></label>
+          </div>
+          <label>Zapas łącznie na oś · mm<input id="printerMargin" type="number" min="0" step="any" value="5"></label>
           <button id="splitPrint">Podziel i eksportuj do druku</button>
-          <p class="hint">Kobra S1 · 250 × 250 × 250 mm. Limit 245 mm zostawia 5 mm zapasu. Płaskie łączenia do klejenia; orientację i podpory sprawdź w slicerze.</p>
+          <p class="hint">Obszar roboczy: X — szerokość, Y — głębokość, Z — wysokość. Zapas odejmowany raz od każdego wymiaru. Pion sceny odpowiada Z drukarki; bez automatycznego obracania części. Płaskie łączenia do klejenia; orientację i podpory sprawdź w slicerze.</p>
         </div>
 
       </section>

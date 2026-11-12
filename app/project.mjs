@@ -11,6 +11,7 @@ export const DEFAULT_SHIN_STYLE = 'wrap';
 export const MAX_PROJECT_BYTES=150_000_000;
 export const MAX_PROJECT_FACES=2000000;
 export const freshProfile=()=>({
+  printer:{size:[250,250,250],margin:5},
   avatar:{type:'neutral',stature:DEFAULT_STATURE},
   ...Object.fromEntries(Object.entries(REGIONS).map(([key,r])=>[key,{dimensions:[...r.size],gap:r.gap,details:{}}]))
 });
@@ -50,6 +51,11 @@ export function openProject(text){
   try{value=JSON.parse(text);}catch{fail();}
   if(value?.version!==1||!Array.isArray(value.parts)||value.parts.length>100||!value.profile)fail();
   const profile=freshProfile();
+  if(value.profile.printer!==undefined){
+    const printer=value.profile.printer;
+    if(!printer||!Array.isArray(printer.size)||printer.size.length!==3||printer.size.some(v=>!Number.isFinite(v)||v<=0)||!Number.isFinite(printer.margin)||printer.margin<0||printer.size.some(v=>v<=printer.margin))fail();
+    profile.printer={size:[...printer.size],margin:printer.margin};
+  }
   if(value.profile.avatar!==undefined){
     const {type,stature}=value.profile.avatar??{};
     if(typeof type!=='string'||!Object.hasOwn(BODY_TYPES,type)||!valid(stature,800,2500))fail();
