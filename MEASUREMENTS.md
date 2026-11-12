@@ -1,4 +1,4 @@
-# Pomiary i stan zgodności — 0.5.0
+# Pomiary i ograniczenia — PolyFitter 0.1
 
 Porównanie wykonano 10 listopada 2026 z dokumentacją autorów ArmorSmith:
 
@@ -8,17 +8,17 @@ Porównanie wykonano 10 listopada 2026 z dokumentacją autorów ArmorSmith:
 
 Dokumentacja opisuje wzrost, długości tułowia i segmentów kończyn, sumy długości ręki i nogi, obwody oraz regulację proporcji przekrojów. Regulacja szczegółów twarzy i biustu jest regulacją kształtu, nie bezpośrednim odczytem miary krawieckiej. Nie znaleziono w powyższych stronach osobnych pomiarów palców ani specyfikacji blokad każdego wymiaru. Nie traktujemy tych funkcji jako potwierdzonej zgodności.
 
-| Obszar | Stan przed zmianą | Stan 0.5.0 |
-|---|---|---|
-| Głowa | Obwód wyliczany z elipsy | Kalibracja obwodu na poziomym przekroju czoła, niezależna wysokość  |
-| Szyja, barki | Formularz nie odpowiadał dokładnie szerokości siatki | Kalibracja barków i obwodów szyi; długość szyi z pionowych punktów odniesienia |
-| Tułów | Obwody, szerokości i ogólne wymiary | Dodane proporcje przekrojów oraz niezależna wielkość/wysokość biustu i wielkość pośladków |
-| Ręce | Strony niezależne, długości, obwody, suma | Blokada ramienia/przedramienia przy zmianie sumy, proporcje przekrojów |
-| Nogi | Strony niezależne, długości, obwody, suma | Blokada uda/goleni przy zmianie sumy, proporcje przekrojów |
-| Miary złożone | Suma ręki i nogi | Zachowują zablokowany segment; dwie blokady odrzucają zmianę |
-| Palce | Brak pomiarów | Nadal brak; kształt dłoni pochodzi z siatki MakeHuman |
-| Prowadnice pomiarowe | Linie podziału | Nadal brak kompletu prowadnic dla każdego pola; linie podziału nie są pełnym systemem prowadnic |
-| Wszystkie wymiary 1:1 | Niepotwierdzone | Nadal niepotwierdzone, szczególnie wszystkie obwody rąk, długości dłoni/stóp i szczegóły twarzy |
+| Obszar | Stan w serii 0.1 |
+| --- | --- |
+| Głowa | Kalibracja obwodu na poziomym przekroju czoła, niezależna wysokość |
+| Szyja, barki | Kalibracja barków i obwodów szyi; długość szyi z pionowych punktów odniesienia |
+| Tułów | Dodane proporcje przekrojów oraz niezależna wielkość/wysokość biustu i wielkość pośladków |
+| Ręce | Blokada ramienia/przedramienia przy zmianie sumy, proporcje przekrojów |
+| Nogi | Blokada uda/goleni przy zmianie sumy, proporcje przekrojów |
+| Miary złożone | Zachowują zablokowany segment; dwie blokady odrzucają zmianę |
+| Palce | Brak; kształt dłoni pochodzi z siatki MakeHuman |
+| Prowadnice pomiarowe | Brak kompletu prowadnic dla każdego pola; linie podziału nie są pełnym systemem prowadnic |
+| Wszystkie wymiary 1:1 | Niepotwierdzone, szczególnie wszystkie obwody rąk, długości dłoni/stóp i szczegóły twarzy |
 
 ## Definicje i dokładność
 
@@ -37,6 +37,6 @@ Test Commander Fox nie został wykonany: nie dostarczono jego plików STL. Test 
 
 Otoczka dopasowania jest konserwatywna. Ustawienie luzu 0 oznacza brak dodanego zapasu w konfiguracji; nie gwarantuje styku całej powierzchni hełmu z głową ani dokładnego braku pustej przestrzeni. Nie wykrywa semantycznie pozycji oczu, „zębów” wizjera czy dolnej krawędzi brody. Do tego służy podgląd i ręczne ustawienie. Nos i uszy biorą udział w kontroli geometrii.
 
-Podział do druku działa dla poprawnych zamkniętych siatek. Eksport jest blokowany, jeśli wynik nie przechodzi kontroli szczelności. Nie ma jeszcze automatycznych kołków montażowych, wyboru szwów względem detali hełmu ani optymalizacji podpór. Wymiar 245 mm jest limitem obrysu części, a nie gwarancją miejsca na podpory i brim w dowolnej orientacji.
+Podział do druku działa dla poprawnych zamkniętych siatek. Eksport jest blokowany, jeśli wynik nie przechodzi kontroli szczelności. Nie ma jeszcze automatycznych kołków montażowych, wyboru szwów względem detali hełmu ani optymalizacji podpór. Limit obrysu części wynika z podanych wymiarów drukarki X/Y/Z pomniejszonych o zapas. Domyślnie jest to 245 mm na każdej osi. Nie gwarantuje miejsca na podpory i brim w dowolnej orientacji.
 
 Licencje siatki i szkieletu MakeHuman CC0 oraz triangulacji Earcut ISC są zachowane w repozytorium. Nie wykorzystano modeli z Unreal Engine ani ArmorSmith.

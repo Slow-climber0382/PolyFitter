@@ -3,12 +3,14 @@
 [English README](README.md)
 
 Otwartoźródłowa aplikacja przeglądarkowa do dopasowywania modeli 3D zbroi i rekwizytów
-do wymiarów użytkownika. Wczesna wersja 0.6.3; poprzednia nazwa robocza: ForgeFit.
+do wymiarów użytkownika. Wersja 0.1 to pierwsze wydanie publiczne (numer pakietu: 0.1.0).
+Od tego wydania zmiany opisujemy w [historii wydań](CHANGELOG.md).
 
 ## Uruchomienie
 
-Docelowy adres: https://slow-climber0382.github.io/PolyFitter/ — zacznie działać po
-włączeniu GitHub Pages i udanej publikacji. Program przetwarza modele i pomiary
+Otwórz https://slow-climber0382.github.io/PolyFitter/.
+Strona udostępnia ostatnią pomyślnie wdrożoną wersję z main. Proponowane wydanie
+pojawi się po przeglądzie, scaleniu i publikacji. Program przetwarza modele i pomiary
 lokalnie w przeglądarce. Nie wymaga konta ani przesyłania STL na serwer.
 Zapisuj projekty: zamknięcie lub odświeżenie karty usuwa niezapisane zmiany.
 Interfejs jest obecnie po polsku; pozostałe języki są planowane.
@@ -22,7 +24,7 @@ Interfejs jest obecnie po polsku; pozostałe języki są planowane.
 - Przybliżona kontrola kolizji, mapa dopasowania i próba wsunięcia hełmu; pianka na czubku.
 - Wiele części w projekcie i wspólne transformacje zestawów hełmu.
 - Cofnij/Ponów do 40 zmian, również pomiarów oraz importu/usunięcia części.
-- Zapis i odczyt `.polyfitter`, odczyt wcześniejszych `.meshavon` i `.forgefit`, eksport STL w mm.
+- Zapis i odczyt projektów `.polyfitter`, eksport STL w mm.
 - Eksperymentalny podział na zamknięte części dla dowolnych dodatnich wymiarów drukarki X/Y/Z i zapasu odejmowanego raz od każdej osi. Ustawienia zapisują się w projekcie i obsługują Cofnij/Ponów. Pion sceny Y odpowiada Z drukarki; części nie są automatycznie obracane ani układane na stole.
 
 LPM obraca, PPM przesuwa, rolka przybliża. Dostępne są sześć rzutów i kadrowanie.
@@ -82,4 +84,3 @@ dziennika zmian. Nie wymaga publikowania kodu forka ani naszej zgody na jego wyd
 Projekt źródłowy: https://github.com/Slow-climber0382/PolyFitter
 
 Dane manekina MakeHuman pozostają na CC0, Earcut na ISC; szczegóły w [ASSETS.md](ASSETS.md).
-Wcześniejsze kopie ForgeFit udostępnione na MIT zachowują tę licencję.
