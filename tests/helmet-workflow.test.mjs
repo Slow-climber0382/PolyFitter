@@ -62,3 +62,20 @@ test('printer split creates closed parts within 245 mm and preserves shell volum
  const v=volume(mesh);assert.ok(Math.abs(pieces.reduce((s,m)=>s+volume(m),0)-v)/Math.abs(v)<.0001);
  assert.throws(()=>splitForPrinter(Float32Array.from([0,0,0,300,0,0,0,300,0])));
 });
+test('rectangular printer limits split the exceeded axis even when another axis is longer',()=>{
+ const mesh=demoShell(),limits=[100,500,700],pieces=splitForPrinter(mesh,limits);
+ assert.ok(pieces.length>1);
+ for(const piece of pieces){assert.ok(inspectMesh(piece).closed);assert.ok(bounds(piece).size.every((v,i)=>v<=limits[i]+.001));}
+ assert.equal(splitForPrinter(mesh,[1000,1200,1500]).length,1);
+ for(const limits of [[0,250,250],[-1,250,250],[NaN,250,250],[Infinity,250,250],[250,250]])assert.throws(()=>splitForPrinter(mesh,limits));
+});
+test('printer settings round trip and legacy projects get defaults',()=>{
+ const p=freshProfile();p.printer={size:[180,320,600],margin:2.5};
+ const text=new TextDecoder().decode(packProject(p,[], -1));
+ assert.deepEqual(openProject(text).profile.printer,p.printer);
+ const legacy=JSON.parse(text);delete legacy.profile.printer;
+ assert.deepEqual(openProject(JSON.stringify(legacy)).profile.printer,{size:[250,250,250],margin:5});
+ for(const printer of [{size:[100,200,300],margin:100},{size:[0,200,300],margin:0},{size:[100,200,300],margin:-1}]){
+  legacy.profile.printer=printer;assert.throws(()=>openProject(JSON.stringify(legacy)));
+ }
+});

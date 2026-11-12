@@ -3,7 +3,7 @@
 [English README](README.md)
 
 Otwartoźródłowa aplikacja przeglądarkowa do dopasowywania modeli 3D zbroi i rekwizytów
-do wymiarów użytkownika. Wczesna wersja 0.6.2; poprzednia nazwa robocza: ForgeFit.
+do wymiarów użytkownika. Wczesna wersja 0.6.3; poprzednia nazwa robocza: ForgeFit.
 
 ## Uruchomienie
 
@@ -23,7 +23,7 @@ Interfejs jest obecnie po polsku; pozostałe języki są planowane.
 - Wiele części w projekcie i wspólne transformacje zestawów hełmu.
 - Cofnij/Ponów do 40 zmian, również pomiarów oraz importu/usunięcia części.
 - Zapis i odczyt `.polyfitter`, odczyt wcześniejszych `.meshavon` i `.forgefit`, eksport STL w mm.
-- Eksperymentalny podział płaszczyznami na zamknięte części do druku.
+- Eksperymentalny podział na zamknięte części dla dowolnych dodatnich wymiarów drukarki X/Y/Z i zapasu odejmowanego raz od każdej osi. Ustawienia zapisują się w projekcie i obsługują Cofnij/Ponów. Pion sceny Y odpowiada Z drukarki; części nie są automatycznie obracane ani układane na stole.
 
 LPM obraca, PPM przesuwa, rolka przybliża. Dostępne są sześć rzutów i kadrowanie.
 Ctrl/Cmd+Z oraz Ctrl/Cmd+Shift+Z działają poza polami tekstowymi; w polach pozostaje

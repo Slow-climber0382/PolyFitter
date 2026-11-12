@@ -3,7 +3,7 @@
 [Polski — Przeczytaj mnie](PRZECZYTAJ_MNIE.md)
 
 Open-source, browser-based tools for fitting 3D armor and props to body measurements.
-PolyFitter is an early development release (0.6.2), formerly named Meshavon and ForgeFit.
+PolyFitter is an early development release (0.6.3), formerly named Meshavon and ForgeFit.
 
 ## Use the app
 
@@ -24,7 +24,7 @@ The current interface is Polish; English and further translations are planned.
 - Multi-part projects and helmet assemblies with shared transforms.
 - Undo/redo (40 changes), including measurements, transforms and part import/removal.
 - Project download/reopen, including legacy `.meshavon` and `.forgefit` projects; new files use `.polyfitter`.
-- STL export in millimeters, and an existing experimental capped planar split for printing.
+- STL export in millimeters, and experimental capped planar splitting for configurable printer X/Y/Z dimensions with a total allowance per axis. Printer settings persist in projects and support undo/redo. Scene Y maps to printer Z; parts are not automatically rotated or packed.
 
 Use left drag to orbit, right drag to pan and the wheel to zoom. Six standard views,
 reset and framing controls are available. Ctrl/Cmd+Z and Ctrl/Cmd+Shift+Z operate on
