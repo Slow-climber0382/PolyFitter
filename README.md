@@ -3,12 +3,14 @@
 [Polski — Przeczytaj mnie](PRZECZYTAJ_MNIE.md)
 
 Open-source, browser-based tools for fitting 3D armor and props to body measurements.
-PolyFitter is an early development release (0.6.3), formerly named Meshavon and ForgeFit.
+PolyFitter 0.1 is the first public release (package version 0.1.0).
+See [release notes](CHANGELOG.md) for changes starting with this release.
 
 ## Use the app
 
-The intended GitHub Pages address is https://slow-climber0382.github.io/PolyFitter/.
-It becomes available after the repository owner enables Pages and a deployment succeeds.
+Open https://slow-climber0382.github.io/PolyFitter/.
+The hosted app follows the latest successfully deployed main branch; proposed releases
+become available only after review, merge and deployment.
 No installation, account, backend, or model upload service is required to use the app.
 Models and measurements are processed in your browser. Save projects regularly: closing
 or refreshing the tab discards unsaved work. Downloads are controlled by your browser.
@@ -23,7 +25,7 @@ The current interface is Polish; English and further translations are planned.
 - Approximate collision, fit-color and helmet insertion checks; optional top padding.
 - Multi-part projects and helmet assemblies with shared transforms.
 - Undo/redo (40 changes), including measurements, transforms and part import/removal.
-- Project download/reopen, including legacy `.meshavon` and `.forgefit` projects; new files use `.polyfitter`.
+- Project download/reopen using `.polyfitter` files.
 - STL export in millimeters, and experimental capped planar splitting for configurable printer X/Y/Z dimensions with a total allowance per axis. Printer settings persist in projects and support undo/redo. Scene Y maps to printer Z; parts are not automatically rotated or packed.
 
 Use left drag to orbit, right drag to pan and the wheel to zoom. Six standard views,
@@ -90,4 +92,3 @@ It does not require forks to publish their source or obtain upstream approval.
 Original project: https://github.com/Slow-climber0382/PolyFitter
 
 MakeHuman mesh/rig/morph assets remain CC0; Earcut remains ISC. See [ASSETS.md](ASSETS.md).
-Earlier ForgeFit copies distributed under MIT retain their original license.
