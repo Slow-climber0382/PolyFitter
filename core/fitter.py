@@ -47,7 +47,7 @@ def _fwd_rotate_xyz(x: float, y: float, z: float, rotation_deg: Vec3) -> tuple[f
     return x, y, z
 
 
-def _collect_cranium_samples(head: GeneratedHead, max_samples: int = 160) -> list[Vec3]:
+def _collect_cranium_samples(head: GeneratedHead, max_samples: int = 72) -> list[Vec3]:
     verts = head.mesh.vertices
     tris = head.mesh.triangles
     samples: list[Vec3] = []
@@ -112,11 +112,8 @@ def fit_helmet(
     head_box = head.mesh.bounding_box
     helmet_bvh = _TriangleBVH(helmet_mesh)
     head_bvh = _TriangleBVH(head.mesh)
-    samples = _collect_cranium_samples(head, max_samples=160)
+    samples = _collect_cranium_samples(head, max_samples=72)
 
-    # Parameterize around oriented helmet bounding-box center h_center:
-    # world_pt = anchor + scale * (R(local_pt) - h_center)
-    #          = (anchor - scale * h_center) + scale * R(local_pt)
     h_center = h_box.center
     top_from_center = h_box.max_pt.y - h_center.y
 
@@ -165,21 +162,22 @@ def fit_helmet(
         mean_c = sum_c / n
         mse = sq_err / n
 
+        # Lexicographic priority: never trade collision/tightness for smaller max_clearance_mm
         penalty = mse
-        if min_c < min_clearance_mm:
-            deficit = min_clearance_mm - min_c
-            penalty += 2000.0 * deficit * deficit + 500.0
         if max_c > max_clearance_mm:
             excess = max_c - max_clearance_mm
-            penalty += 150.0 * excess * excess + 50.0
+            penalty += 25.0 * excess * excess
+        if min_c < min_clearance_mm:
+            deficit = min_clearance_mm - min_c
+            penalty += 1e7 + 1e6 * deficit * deficit
+        if min_c < 0.0:
+            penalty += 1e9 + 1e7 * min_c * min_c
         return penalty, min_c, max_c, mean_c
 
-    # Physically bounded uniform scale range based on head-to-helmet extents
     base_ratio = max(head_box.size.x / h_box.size.x, head_box.size.z / h_box.size.z)
     s_min = max(1e-4, 0.70 * base_ratio)
     s_max = max(s_min * 1.5, 2.25 * max(base_ratio, head_box.size.y / h_box.size.y))
 
-    # Coarse grid search over bounded scale and vertical crown alignment
     best_pen = float("inf")
     cur_s = base_ratio
     cur_ax = head_box.center.x
@@ -187,11 +185,11 @@ def fit_helmet(
     cur_az = head_box.center.z
     candidates: list[tuple[float, float, float, float, float]] = []
 
-    grid_steps = 24
+    grid_steps = 20
     for i in range(grid_steps + 1):
         s = s_min + (s_max - s_min) * (i / grid_steps)
         base_ay = head_box.max_pt.y + target_clearance_mm + 4.0 - s * top_from_center
-        for dy in (-10.0, -5.0, 0.0, 5.0, 10.0):
+        for dy in (-8.0, -4.0, 0.0, 4.0, 8.0):
             ay = base_ay + dy
             pen, _, _, _ = eval_stats(s, head_box.center.x, ay, head_box.center.z)
             candidates.append((pen, s, head_box.center.x, ay, head_box.center.z))
@@ -202,7 +200,6 @@ def fit_helmet(
                 cur_ay = ay
                 cur_az = head_box.center.z
 
-    # Coordinate pattern search over anchor translation (Y, Z, X) and in-place scale
     for step_mm in (6.0, 3.0, 1.5, 0.75, 0.35):
         improved = True
         while improved:
@@ -228,7 +225,6 @@ def fit_helmet(
             ns = cur_s * (1.0 + s_delta)
             if not (s_min <= ns <= s_max):
                 continue
-            # Keep crown clearance constant while scaling around center
             nay = cur_ay + (cur_s - ns) * top_from_center
             pen, _, _, _ = eval_stats(ns, cur_ax, nay, cur_az)
             if pen + 1e-6 < best_pen:
@@ -237,7 +233,6 @@ def fit_helmet(
                 best_pen = pen
                 candidates.append((best_pen, cur_s, cur_ax, cur_ay, cur_az))
 
-    # Verify top distinct candidates with full exact clearance & triangle collision check
     candidates.sort(key=lambda item: item[0])
     unique_transforms: list[Transform3D] = []
     for _, s, ax, ay, az in candidates:
@@ -253,21 +248,22 @@ def fit_helmet(
             for u in unique_transforms
         ):
             unique_transforms.append(t)
-        if len(unique_transforms) >= 4:
+        if len(unique_transforms) >= 3:
             break
 
     best_transform = unique_transforms[0]
     best_report = evaluate_helmet_clearance(head, helmet_mesh, helmet_transform=best_transform)
 
-    def report_rank(rep: FitClearanceReport) -> tuple[int, int, float]:
+    def report_rank(rep: FitClearanceReport) -> tuple[int, int, int, float]:
         valid_flag = 0 if rep.is_valid else 1
         collision_flag = 0 if rep.intersecting_triangles == 0 else 1
+        min_ok_flag = 0 if rep.min_clearance_mm >= min_clearance_mm else 1
         gap_err = (
             abs(rep.mean_clearance_mm - target_clearance_mm)
             + max(0.0, min_clearance_mm - rep.min_clearance_mm) * 50.0
             + max(0.0, rep.max_clearance_mm - max_clearance_mm) * 10.0
         )
-        return (valid_flag, collision_flag, gap_err)
+        return (valid_flag, collision_flag, min_ok_flag, gap_err)
 
     for cand_t in unique_transforms[1:]:
         cand_rep = evaluate_helmet_clearance(head, helmet_mesh, helmet_transform=cand_t)
@@ -275,11 +271,14 @@ def fit_helmet(
             best_transform = cand_t
             best_report = cand_rep
 
-    # If full-mesh verification found minor collision on an incompatible geometry, step scale up cleanly
     if best_report.intersecting_triangles > 0 or best_report.min_clearance_mm < min_clearance_mm:
-        for mult in (1.02, 1.05, 1.10, 1.18, 1.30):
-            ns = best_transform.scale.x * mult
-            px, py, pz = to_world_position(ns, cur_ax, cur_ay + (cur_s - ns) * top_from_center, cur_az)
+        base_s = best_transform.scale.x
+        base_ax = best_transform.position.x + base_s * h_center.x
+        base_ay = best_transform.position.y + base_s * h_center.y
+        base_az = best_transform.position.z + base_s * h_center.z
+        for mult in (1.03, 1.07, 1.12, 1.20, 1.32):
+            ns = base_s * mult
+            px, py, pz = to_world_position(ns, base_ax, base_ay + (base_s - ns) * top_from_center, base_az)
             cand_t = Transform3D(position=Vec3(px, py, pz), rotation=rot, scale=Vec3(ns, ns, ns))
             cand_rep = evaluate_helmet_clearance(head, helmet_mesh, helmet_transform=cand_t)
             if report_rank(cand_rep) < report_rank(best_report):
