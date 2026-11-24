@@ -1,4 +1,4 @@
-import io
+import tempfile
 import math
 import struct
 import pytest
@@ -67,14 +67,31 @@ def test_save_stl_preserves_existing_file_on_write_error(tmp_path, monkeypatch):
         [(0, 1, 2)],
     )
 
-    def broken_write(self, data):
-        raise OSError("Simulated disk full mid-export")
+    real_ntf = tempfile.NamedTemporaryFile
 
-    monkeypatch.setattr(io.BufferedWriter, "write", broken_write)
+    class FailingTempFile:
+        def __init__(self, *args, **kwargs):
+            self._f = real_ntf(*args, **kwargs)
+            self.name = self._f.name
+
+        def write(self, data):
+            self._f.close()
+            raise OSError("Simulated disk full mid-export")
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc, tb):
+            if not self._f.closed:
+                self._f.close()
+            return False
+
+    monkeypatch.setattr(tempfile, "NamedTemporaryFile", FailingTempFile)
     with pytest.raises(OSError):
         save_stl(mesh, p, binary=True)
 
     assert p.read_bytes() == b"EXISTING_VALID_STL"
+    assert [f.name for f in tmp_path.iterdir()] == ["existing.stl"]
 
 
 def test_save_stl_analytical_two_axis_rotation_and_non_uniform_scale(tmp_path):
