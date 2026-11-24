@@ -2,6 +2,7 @@
 """PolyFitter CLI: parametric head generation, 3D clearance check, and helmet fitting."""
 import argparse
 import json
+import os
 from pathlib import Path
 import sys
 
@@ -38,6 +39,17 @@ def _load_helmet_mesh(path: Path) -> MeshData:
     if ext == ".obj":
         return load_obj(path)
     raise ValueError(f"Unsupported input mesh extension {ext!r}; use .stl or .obj")
+
+
+def _to_project_mesh_ref(helmet_path: Path, project_path: Path) -> str:
+    try:
+        rel = os.path.relpath(helmet_path.resolve(), project_path.resolve().parent).replace("\\", "/")
+    except ValueError:
+        rel = helmet_path.name
+    parts = rel.split("/")
+    if ":" in rel or "\0" in rel or any(seg in ("", ".", "..") for seg in parts):
+        return helmet_path.name
+    return rel
 
 
 def _save_mesh_by_ext(mesh: MeshData, path: Path) -> None:
@@ -146,7 +158,7 @@ def main(argv: list[str] | None = None) -> int:
                     ProjectPart(
                         part_id="helmet_primary",
                         name=helmet_mesh.name,
-                        mesh_path=str(args.helmet),
+                        mesh_path=_to_project_mesh_ref(args.helmet, args.out_project),
                         region=BodyRegion.HEAD,
                         transform=transform,
                     )

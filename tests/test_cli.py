@@ -41,7 +41,7 @@ def test_cli_end_to_end_fit_and_exports(tmp_path, capsys):
     )
 
     captured = capsys.readouterr()
-    assert exit_code == 0
+    assert exit_code == 0, captured.err
     payload = json.loads(captured.out)
     assert payload["status"] == "PASS"
     assert payload["converged"] is True
