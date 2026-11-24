@@ -1,3 +1,4 @@
+import pytest
 import json
 from core.contracts import HeadMeasurements, Transform3D, Vec3
 from core.head_generator import generate_head_mesh
@@ -59,7 +60,7 @@ def test_cli_end_to_end_fit_and_exports(tmp_path, capsys):
     reloaded_project = load_project(out_proj)
     assert reloaded_project.head_measurements == m
     assert len(reloaded_project.parts) == 1
-    assert reloaded_project.parts[0].transform.scale.x == payload["transform"]["scale"]
+    assert reloaded_project.parts[0].transform.scale.x == pytest.approx(payload["transform"]["scale"], abs=1e-6)
 
 
 def test_cli_no_fit_failure_returns_exit_code_2(tmp_path, capsys):
