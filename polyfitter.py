@@ -15,7 +15,7 @@ from core.contracts import (
 )
 from core.fitter import fit_helmet
 from core.head_generator import generate_head_mesh
-from core.mesh_io import load_mesh, save_obj, save_stl
+from core.mesh_io import load_obj, load_stl, save_stl
 from core.project_io import ProjectData, ProjectPart, save_project
 from core.transforms import apply_transform
 
@@ -31,16 +31,13 @@ def _parse_vec3(raw: str, label: str) -> Vec3:
     return Vec3(x, y, z)
 
 
-def _merge_meshes(meshes: list[MeshData], name: str) -> MeshData:
-    if len(meshes) == 1:
-        return meshes[0]
-    vertices: list[Vec3] = []
-    triangles: list[tuple[int, int, int]] = []
-    for m in meshes:
-        offset = len(vertices)
-        vertices.extend(m.vertices)
-        triangles.extend((i0 + offset, i1 + offset, i2 + offset) for i0, i1, i2 in m.triangles)
-    return MeshData(name=name, vertices=vertices, triangles=triangles)
+def _load_helmet_mesh(path: Path) -> MeshData:
+    ext = path.suffix.lower()
+    if ext == ".stl":
+        return load_stl(path)
+    if ext == ".obj":
+        return load_obj(path)
+    raise ValueError(f"Unsupported input mesh extension {ext!r}; use .stl or .obj")
 
 
 def _save_mesh_by_ext(mesh: MeshData, path: Path) -> None:
@@ -48,7 +45,10 @@ def _save_mesh_by_ext(mesh: MeshData, path: Path) -> None:
     if ext == ".stl":
         save_stl(mesh, path, binary=True)
     elif ext == ".obj":
-        save_obj([mesh], path)
+        lines = [f"o {mesh.name}\n"]
+        lines.extend(f"v {v.x} {v.y} {v.z}\n" for v in mesh.vertices)
+        lines.extend(f"f {i0 + 1} {i1 + 1} {i2 + 1}\n" for i0, i1, i2 in mesh.triangles)
+        path.write_text("".join(lines), encoding="utf-8")
     else:
         raise ValueError(f"Unsupported output mesh extension {ext!r}; use .stl or .obj")
 
@@ -104,8 +104,7 @@ def main(argv: list[str] | None = None) -> int:
             height_mm=args.height,
         )
         rotation = _parse_vec3(args.rotation, "--rotation")
-        loaded_parts = load_mesh(args.helmet)
-        helmet_mesh = _merge_meshes(loaded_parts, name=args.helmet.stem)
+        helmet_mesh = _load_helmet_mesh(args.helmet)
         head = generate_head_mesh(
             measurements,
             radial_segments=args.radial_segments,
