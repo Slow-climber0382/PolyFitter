@@ -67,11 +67,23 @@ def _offset_open_helmet_shell(head: GeneratedHead, inner_offset_mm: float, wall_
                 )
 
     shell_triangles: list[tuple[int, int, int]] = []
+    edge_counts: dict[tuple[int, int], int] = {}
+    directed_edges: list[tuple[int, int]] = []
     for i0, i1, i2 in selected_tris:
         # Inner wall (facing inward toward head)
         shell_triangles.append((inner_map[i0], inner_map[i2], inner_map[i1]))
         # Outer wall (facing outward)
         shell_triangles.append((outer_map[i0], outer_map[i1], outer_map[i2]))
+        for u, v in ((i0, i1), (i1, i2), (i2, i0)):
+            key = (min(u, v), max(u, v))
+            edge_counts[key] = edge_counts.get(key, 0) + 1
+            directed_edges.append((u, v))
+
+    # Stitch the bottom rim connecting inner and outer walls into a watertight shell
+    for u, v in directed_edges:
+        if edge_counts[(min(u, v), max(u, v))] == 1:
+            shell_triangles.append((outer_map[u], inner_map[u], inner_map[v]))
+            shell_triangles.append((outer_map[u], inner_map[v], outer_map[v]))
 
     return MeshData(name="open_helmet_shell", vertices=shell_vertices, triangles=shell_triangles)
 
