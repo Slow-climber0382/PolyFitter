@@ -7,17 +7,16 @@ import sys
 
 from core.clearance import evaluate_helmet_clearance
 from core.contracts import (
+    BodyRegion,
     HeadMeasurements,
     MeshData,
-    ProjectState,
-    ScenePart,
     Transform3D,
     Vec3,
 )
 from core.fitter import fit_helmet
 from core.head_generator import generate_head_mesh
 from core.mesh_io import load_mesh, save_obj, save_stl
-from core.project_io import save_project
+from core.project_io import ProjectData, ProjectPart, save_project
 from core.transforms import apply_transform
 
 
@@ -141,13 +140,15 @@ def main(argv: list[str] | None = None) -> int:
         if args.out_head is not None:
             _save_mesh_by_ext(head.mesh, args.out_head)
         if args.out_project is not None:
-            project = ProjectState(
-                head=measurements,
+            project = ProjectData(
+                name=args.out_project.stem,
+                head_measurements=measurements,
                 parts=[
-                    ScenePart(
+                    ProjectPart(
                         part_id="helmet_primary",
                         name=helmet_mesh.name,
-                        source_path=str(args.helmet),
+                        mesh_path=str(args.helmet),
+                        region=BodyRegion.HEAD,
                         transform=transform,
                     )
                 ],

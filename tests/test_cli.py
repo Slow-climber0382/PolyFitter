@@ -57,7 +57,7 @@ def test_cli_end_to_end_fit_and_exports(tmp_path, capsys):
     assert len(reloaded_helmet.triangles) == len(raw_helmet.triangles)
 
     reloaded_project = load_project(out_proj)
-    assert reloaded_project.head == m
+    assert reloaded_project.head_measurements == m
     assert len(reloaded_project.parts) == 1
     assert reloaded_project.parts[0].transform.scale.x == payload["transform"]["scale"]
 
