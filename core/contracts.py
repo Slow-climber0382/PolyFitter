@@ -146,7 +146,7 @@ class MeshData:
 
     @property
     def bounding_box(self) -> BoundingBox3D:
-        self._validate_vertices()
+        self.__post_init__()
         return BoundingBox3D(
             Vec3(*(min(getattr(v, a) for v in self.vertices) for a in ("x", "y", "z"))),
             Vec3(*(max(getattr(v, a) for v in self.vertices) for a in ("x", "y", "z"))),

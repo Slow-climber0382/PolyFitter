@@ -6,6 +6,8 @@ OBJ fan triangulation is intended for convex planar polygons; no tessellator
 for concave polygons is provided. Imported facet/OBJ normals are ignored.
 """
 import math
+import os
+import tempfile
 from pathlib import Path
 import struct
 from typing import Iterator
@@ -22,7 +24,7 @@ def _scale(value: float) -> None:
 
 def _ascii_faces(path: Path) -> Iterator[list[Vec3]]:
     state, points = 'solid', []
-    with path.open(encoding='ascii') as stream:
+    with path.open(encoding='utf-8-sig') as stream:
         for number, line in enumerate(stream, 1):
             words = line.split()
             if not words:
@@ -148,32 +150,54 @@ def save_stl(mesh: MeshData, path: str | Path, binary: bool = True, transform: T
     if binary and (len(mesh.triangles) > 0xffffffff or any(abs(v) > 3.4028234663852886e38 for p in vertices for v in (p.x,p.y,p.z))):
         raise ValueError('Mesh exceeds binary STL representation')
     path = Path(path)
-    with path.open('wb' if binary else 'w') as stream:
-        if binary:
-            stream.write(b'PolyFitter mm Y-up'.ljust(80, b'\0'))
-            stream.write(struct.pack('<I', len(mesh.triangles)))
-        else:
-            stream.write('solid PolyFitter\n')
-        for face in mesh.triangles:
-            points = [vertices[i] for i in face]
-            normal = _normal(*points)
+    temporary_path = None
+    try:
+        with tempfile.NamedTemporaryFile(
+            mode='wb' if binary else 'w',
+            encoding=None if binary else 'utf-8',
+            dir=path.parent, delete=False,
+        ) as stream:
+            temporary_path = Path(stream.name)
             if binary:
-                stream.write(_RECORD.pack(*normal, *(v for p in points for v in (p.x,p.y,p.z)), 0))
+                stream.write(b'PolyFitter mm Y-up'.ljust(80, b'\0'))
+                stream.write(struct.pack('<I', len(mesh.triangles)))
             else:
-                stream.write('  facet normal ' + ' '.join(format(x,'.17g') for x in normal) + '\n    outer loop\n')
-                for p in points:
-                    stream.write(f'      vertex {p.x:.17g} {p.y:.17g} {p.z:.17g}\n')
-                stream.write('    endloop\n  endfacet\n')
-        if not binary:
-            stream.write('endsolid PolyFitter\n')
+                stream.write('solid PolyFitter\n')
+            for face in mesh.triangles:
+                points = [vertices[i] for i in face]
+                normal = _normal(*points)
+                if binary:
+                    stream.write(_RECORD.pack(*normal, *(v for p in points for v in (p.x,p.y,p.z)), 0))
+                else:
+                    stream.write('  facet normal ' + ' '.join(format(x,'.17g') for x in normal) + '\n    outer loop\n')
+                    for p in points:
+                        stream.write(f'      vertex {p.x:.17g} {p.y:.17g} {p.z:.17g}\n')
+                    stream.write('    endloop\n  endfacet\n')
+            if not binary:
+                stream.write('endsolid PolyFitter\n')
+        os.replace(temporary_path, path)
+    finally:
+        if temporary_path is not None:
+            temporary_path.unlink(missing_ok=True)
 
 
 def _obj_lines(path: str | Path) -> Iterator[tuple[int, list[str]]]:
+    pending = ''
+    first_line = 1
     with Path(path).open(encoding='utf-8-sig') as stream:
         for number, line in enumerate(stream, 1):
-            words = line.split('#',1)[0].split()
+            if not pending:
+                first_line = number
+            text = line.split('#', 1)[0].rstrip()
+            if text.endswith('\\'):
+                pending += text[:-1] + ' '
+                continue
+            words = (pending + text).split()
+            pending = ''
             if words:
-                yield number, words
+                yield first_line, words
+    if pending:
+        raise ValueError(f'Unterminated OBJ continuation at line {first_line}')
 
 
 def list_obj_groups(path: str | Path) -> list[str]:
@@ -195,6 +219,8 @@ def load_obj(path: str | Path, group_name: str | None = None, unit_scale: float 
     Ungrouped files cannot be separated automatically by semantic part names.
     """
     _scale(unit_scale)
+    if group_name is not None and not group_name.strip():
+        raise ValueError('group_name must not be empty')
     vertices: list[Vec3] = []
     triangles: list[tuple[int,int,int]] = []
     obj, groups = '', []
