@@ -252,7 +252,7 @@ def _load_mesh_file(path: Path, unit_scale: float = 1.0) -> MeshData:
     raise ValueError(f"Nieobsługiwany format pliku '{ext}'. Użyj .stl lub .obj.")
 
 
-def _run_clearance_analysis(head: Any, part: ScenePartEntry) -> dict[str, Any]:
+def _run_clearance_analysis(head: Any, part: ScenePartEntry, height_mm: float | None = None) -> dict[str, Any]:
     rep = evaluate_helmet_clearance(head, part.mesh, helmet_transform=part.transform)
     result: dict[str, Any] = {
         "is_valid": rep.is_valid,
@@ -268,7 +268,7 @@ def _run_clearance_analysis(head: Any, part: ScenePartEntry) -> dict[str, Any]:
         if "helmet_transform" in sig.parameters:
             kwargs["helmet_transform"] = part.transform
         if "height_mm" in sig.parameters:
-            kwargs["height_mm"] = head.measurements.height_mm
+            kwargs["height_mm"] = height_mm if height_mm is not None else head.mesh.bounding_box.size.y
         reg_rep = eval_reg(head, part.mesh, **kwargs)
         if is_dataclass(reg_rep):
             result["regional"] = asdict(reg_rep)
@@ -442,12 +442,12 @@ def create_app(initial_helmet: Path | None = None, initial_rotation: Vec3 | None
         fit_res = await anyio.to_thread.run_sync(_fit)
         state.push_undo()
         part.transform = fit_res.transform
-        part.last_clearance = await anyio.to_thread.run_sync(_run_clearance_analysis, state.head, part)
+        part.last_clearance = await anyio.to_thread.run_sync(_run_clearance_analysis, state.head, part, state.measurements.height_mm)
         return JSONResponse({"converged": fit_res.converged, "part": part.to_dict(), "state": state.to_summary()})
 
     async def api_part_clearance(request: Request) -> JSONResponse:
         part = _get_part(request.path_params["part_id"])
-        report = await anyio.to_thread.run_sync(_run_clearance_analysis, state.head, part)
+        report = await anyio.to_thread.run_sync(_run_clearance_analysis, state.head, part, state.measurements.height_mm)
         part.last_clearance = report
         return JSONResponse({"clearance": report, "part": part.to_dict(), "state": state.to_summary()})
 
