@@ -19,7 +19,8 @@ orbit.update();
 
 const gizmo = new TransformControls(camera, canvas);
 gizmo.setSize(0.85);
-scene.add(gizmo);
+const gizmoHelper = typeof gizmo.getHelper === 'function' ? gizmo.getHelper() : gizmo;
+scene.add(gizmoHelper);
 
 gizmo.addEventListener('dragging-changed', (ev) => {
   orbit.enabled = !ev.value;
@@ -255,7 +256,7 @@ async function renderState(newState, reloadHead = false) {
     'scaleXRange', 'scaleXNum', 'scaleYRange', 'scaleYNum', 'scaleZRange', 'scaleZNum',
     'posXRange', 'posXNum', 'posYRange', 'posYNum', 'posZRange', 'posZNum',
     'rotXRange', 'rotXNum', 'rotYRange', 'rotYNum', 'rotZRange', 'rotZNum',
-    'rotMinus90X', 'rotPlus90X', 'rot180Y', 'partOpacityRange',
+    'rotMinus90X', 'rotPlus90X', 'rot180Y', 'centerOnHeadBtn', 'partOpacityRange',
   ];
   for (const id of controlIds) {
     document.getElementById(id).disabled = !hasSel;
@@ -417,6 +418,23 @@ document.getElementById('rotPlus90X').onclick = () => {
 document.getElementById('rot180Y').onclick = () => {
   const cur = parseFloat(document.getElementById('rotYNum').value) || 0;
   setPair('rotY', ((cur + 180 + 180) % 360) - 180);
+  pushTransformToServer(true);
+};
+
+document.getElementById('centerOnHeadBtn').onclick = () => {
+  const sel = currentPart();
+  if (!sel) return;
+  const obj = partMeshes.get(sel.part_id);
+  if (!obj) return;
+  obj.geometry.computeBoundingBox();
+  const box = obj.geometry.boundingBox;
+  const cx = 0.5 * (box.min.x + box.max.x) * obj.scale.x;
+  const cy = 0.5 * (box.min.y + box.max.y) * obj.scale.y;
+  const cz = 0.5 * (box.min.z + box.max.z) * obj.scale.z;
+  const headCenterY = (appState?.head?.measurements?.height_mm ?? 240) * 0.5;
+  setPair('posX', +(-cx).toFixed(1));
+  setPair('posY', +(headCenterY - cy).toFixed(1));
+  setPair('posZ', +(-cz).toFixed(1));
   pushTransformToServer(true);
 };
 

@@ -269,7 +269,7 @@ def _run_clearance_analysis(head: Any, part: ScenePartEntry, height_mm: float | 
             kwargs["helmet_transform"] = part.transform
         if "height_mm" in sig.parameters:
             kwargs["height_mm"] = height_mm if height_mm is not None else head.mesh.bounding_box.size.y
-        reg_rep = eval_reg(head, part.mesh, **kwargs)
+        reg_rep = eval_reg(head.mesh, part.mesh, **kwargs)
         if is_dataclass(reg_rep):
             result["regional"] = asdict(reg_rep)
     return result
