@@ -1,7 +1,11 @@
 """Automatic uniform-scale + translation helmet fitting solver in mm (Y-up)."""
 from dataclasses import dataclass
+from functools import lru_cache
 import math
-from .clearance import _TriangleBVH, evaluate_helmet_clearance
+from .clearance import (
+    _Bounds, _BVHNode, _EPS, _Point, _TriangleBVH, _bounds, _overlaps,
+    _triangles_intersect,
+)
 from .contracts import FitClearanceReport, MeshData, Transform3D, Vec3
 from .head_generator import GeneratedHead
 from .transforms import apply_transform
@@ -47,7 +51,7 @@ def _fwd_rotate_xyz(x: float, y: float, z: float, rotation_deg: Vec3) -> tuple[f
     return x, y, z
 
 
-def _collect_cranium_samples(head: GeneratedHead, max_samples: int = 72) -> list[Vec3]:
+def _collect_cranium_samples(head: GeneratedHead, max_samples: int | None = 72) -> list[Vec3]:
     verts = head.mesh.vertices
     tris = head.mesh.triangles
     samples: list[Vec3] = []
@@ -68,10 +72,118 @@ def _collect_cranium_samples(head: GeneratedHead, max_samples: int = 72) -> list
             )
         )
 
-    if len(samples) <= max_samples:
+    if max_samples is None or len(samples) <= max_samples:
         return samples
     step = len(samples) / max_samples
     return [samples[int(i * step)] for i in range(max_samples)]
+
+
+def _world_bounds(bounds: _Bounds, transform: Transform3D) -> _Bounds:
+    """Propagate intervals through the same operations used for world vertices."""
+    rx, ry, rz = map(math.radians, (transform.rotation.x, transform.rotation.y, transform.rotation.z))
+    scale = transform.scale.x
+    intervals = [(bounds[i] * scale, bounds[i + 3] * scale) for i in range(3)]
+
+    def multiply(interval: tuple[float, float], factor: float) -> tuple[float, float]:
+        low, high = interval
+        return (low * factor, high * factor) if factor >= 0 else (high * factor, low * factor)
+
+    def combine(a: int, b: int, left: float, right: float, subtract: bool) -> tuple[float, float]:
+        low, high = multiply(intervals[a], left)
+        other_low, other_high = multiply(intervals[b], right)
+        if subtract:
+            return low - other_high, high - other_low
+        return low + other_low, high + other_high
+
+    cx, sx = math.cos(rx), math.sin(rx)
+    intervals[1], intervals[2] = combine(1, 2, cx, sx, True), combine(1, 2, sx, cx, False)
+    cy, sy = math.cos(ry), math.sin(ry)
+    intervals[0], intervals[2] = combine(0, 2, cy, sy, False), combine(0, 2, -sy, cy, False)
+    cz, sz = math.cos(rz), math.sin(rz)
+    intervals[0], intervals[1] = combine(0, 1, cz, sz, True), combine(0, 1, sz, cz, False)
+    (x0, x1), (y0, y1), (z0, z1) = intervals
+    t = transform.position
+    return x0 + t.x, y0 + t.y, z0 + t.z, x1 + t.x, y1 + t.y, z1 + t.z
+
+
+def _world_point(point: _Point, transform: Transform3D) -> _Point:
+    scale = transform.scale.x
+    x, y, z = _fwd_rotate_xyz(*(value * scale for value in point), transform.rotation)
+    t = transform.position
+    return x + t.x, y + t.y, z + t.z
+
+
+def _count_transformed_collisions(
+    helmet: _TriangleBVH, head: _TriangleBVH, transform: Transform3D,
+) -> int:
+    """Discard disjoint node pairs and transform triangles only at candidate leaves."""
+    bounds_by_node: dict[_BVHNode, _Bounds] = {}
+    @lru_cache(maxsize=512)
+    def world_triangle(index: int) -> tuple[tuple[_Point, _Point, _Point], _Bounds]:
+        a, b, c = (
+            _world_point(helmet.vertices[i], transform) for i in helmet.triangles[index]
+        )
+        return (a, b, c), _bounds(a, b, c)
+
+    hits: set[int] = set()
+    stack = [(helmet.root, head.root)]
+    while stack:
+        helmet_node, head_node = stack.pop()
+        bounds = bounds_by_node.get(helmet_node)
+        if bounds is None:
+            bounds = _world_bounds(helmet_node.bounds, transform)
+            bounds_by_node[helmet_node] = bounds
+        if not _overlaps(bounds, head_node.bounds):
+            continue
+        if helmet_node.left is not None and head_node.left is not None:
+            for helmet_child in (helmet_node.left, helmet_node.right):
+                for head_child in (head_node.left, head_node.right):
+                    stack.append((helmet_child, head_child))
+        elif helmet_node.left is not None:
+            stack.extend(((helmet_node.left, head_node), (helmet_node.right, head_node)))
+        elif head_node.left is not None:
+            stack.extend(((helmet_node, head_node.left), (helmet_node, head_node.right)))
+        else:
+            for index in helmet_node.tri_indices:
+                if index in hits:
+                    continue
+                face, face_bounds = world_triangle(index)
+                if not _overlaps(face_bounds, head_node.bounds):
+                    continue
+                for other in head_node.tri_indices:
+                    if not _overlaps(face_bounds, head._tri_bounds[other]):
+                        continue
+                    a, b, c = head.triangles[other]
+                    if _triangles_intersect(*face, head.vertices[a], head.vertices[b], head.vertices[c]):
+                        hits.add(index)
+                        break
+    world_triangle.cache_clear()
+    return len(hits)
+
+
+def _evaluate_candidate(
+    helmet: _TriangleBVH, head: _TriangleBVH, samples: list[Vec3], transform: Transform3D,
+) -> FitClearanceReport:
+    scale = transform.scale.x
+    t = transform.position
+    minimum, maximum, total = math.inf, -math.inf, 0.0
+    for p in samples:
+        local = _inv_rotate_xyz(
+            (p.x - t.x) / scale, (p.y - t.y) / scale, (p.z - t.z) / scale,
+            transform.rotation,
+        )
+        distance, nearest = helmet._nearest_point(local)
+        distance *= scale
+        if distance > _EPS and head._is_point_inside(_world_point(nearest, transform)):
+            distance = -distance
+        minimum, maximum = min(minimum, distance), max(maximum, distance)
+        total += distance
+    return FitClearanceReport(
+        min_clearance_mm=minimum,
+        max_clearance_mm=maximum,
+        mean_clearance_mm=total / len(samples),
+        intersecting_triangles=_count_transformed_collisions(helmet, head, transform),
+    )
 
 
 def fit_helmet(
@@ -112,7 +224,12 @@ def fit_helmet(
     head_box = head.mesh.bounding_box
     helmet_bvh = _TriangleBVH(helmet_mesh)
     head_bvh = _TriangleBVH(head.mesh)
-    samples = _collect_cranium_samples(head, max_samples=72)
+    zone = head.cranium_triangle_indices
+    if not zone or any(type(i) is not int or not 0 <= i < len(head.mesh.triangles) for i in zone):
+        raise ValueError("Invalid or empty cranium triangle indices")
+    full_samples = _collect_cranium_samples(head, max_samples=None)
+    step = len(full_samples) / 72
+    samples = full_samples if len(full_samples) <= 72 else [full_samples[int(i * step)] for i in range(72)]
 
     h_center = h_box.center
     top_from_center = h_box.max_pt.y - h_center.y
@@ -252,7 +369,7 @@ def fit_helmet(
             break
 
     best_transform = unique_transforms[0]
-    best_report = evaluate_helmet_clearance(head, helmet_mesh, helmet_transform=best_transform)
+    best_report = _evaluate_candidate(helmet_bvh, head_bvh, full_samples, best_transform)
 
     def report_rank(rep: FitClearanceReport) -> tuple[int, int, int, float]:
         valid_flag = 0 if rep.is_valid else 1
@@ -266,7 +383,7 @@ def fit_helmet(
         return (valid_flag, collision_flag, min_ok_flag, gap_err)
 
     for cand_t in unique_transforms[1:]:
-        cand_rep = evaluate_helmet_clearance(head, helmet_mesh, helmet_transform=cand_t)
+        cand_rep = _evaluate_candidate(helmet_bvh, head_bvh, full_samples, cand_t)
         if report_rank(cand_rep) < report_rank(best_report):
             best_transform = cand_t
             best_report = cand_rep
@@ -280,7 +397,7 @@ def fit_helmet(
             ns = base_s * mult
             px, py, pz = to_world_position(ns, base_ax, base_ay + (base_s - ns) * top_from_center, base_az)
             cand_t = Transform3D(position=Vec3(px, py, pz), rotation=rot, scale=Vec3(ns, ns, ns))
-            cand_rep = evaluate_helmet_clearance(head, helmet_mesh, helmet_transform=cand_t)
+            cand_rep = _evaluate_candidate(helmet_bvh, head_bvh, full_samples, cand_t)
             if report_rank(cand_rep) < report_rank(best_report):
                 best_transform = cand_t
                 best_report = cand_rep
