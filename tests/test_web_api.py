@@ -46,14 +46,14 @@ def test_web_api_manual_nonuniform_scaling_and_exports(tmp_path):
         f"/api/parts/{pid}/transform",
         json={
             "record_undo": True,
-            "scale": [0.99, 1.07, 1.00],
+            "scale": [1.05, 1.07, 1.03],
             "position": [0.0, 4.0, 0.0],
             "rotation": [0.0, 0.0, 0.0],
         },
     )
     assert r_tr.status_code == 200
     updated_part = r_tr.json()["part"]
-    assert updated_part["transform"]["scale"] == [0.99, 1.07, 1.0]
+    assert updated_part["transform"]["scale"] == [1.05, 1.07, 1.03]
     assert updated_part["transform"]["position"] == [0.0, 4.0, 0.0]
 
     # 5. Analiza prześwitu 3D (w tym raport strefowy)
@@ -72,4 +72,4 @@ def test_web_api_manual_nonuniform_scaling_and_exports(tmp_path):
     r_proj = client.get("/api/project/export")
     assert r_proj.status_code == 200
     proj_json = r_proj.json()
-    assert proj_json["parts"][0]["transform"]["scale"] == [0.99, 1.07, 1.0]
+    assert proj_json["parts"][0]["transform"]["scale"] == [1.05, 1.07, 1.03]
