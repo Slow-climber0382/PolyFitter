@@ -8,40 +8,61 @@ from .transforms import apply_transform
 _EPS = 1e-9
 
 
-def _dot(a: Vec3, b: Vec3) -> float:
-    return a.x * b.x + a.y * b.y + a.z * b.z
+_Point = tuple[float, float, float]
+_Triangle = tuple[_Point, _Point, _Point]
+_Bounds = tuple[float, float, float, float, float, float]
+_RAY_DIRECTION = (1.0, 0.13719, 0.07311)
 
 
-def _cross(a: Vec3, b: Vec3) -> Vec3:
-    return Vec3(
-        a.y * b.z - a.z * b.y,
-        a.z * b.x - a.x * b.z,
-        a.x * b.y - a.y * b.x,
+def _xyz(point: Vec3) -> _Point:
+    return point.x, point.y, point.z
+
+
+def _sub(a: _Point, b: _Point) -> _Point:
+    return a[0] - b[0], a[1] - b[1], a[2] - b[2]
+
+
+def _dot(a: _Point, b: _Point) -> float:
+    return a[0] * b[0] + a[1] * b[1] + a[2] * b[2]
+
+
+def _cross(a: _Point, b: _Point) -> _Point:
+    return (
+        a[1] * b[2] - a[2] * b[1],
+        a[2] * b[0] - a[0] * b[2],
+        a[0] * b[1] - a[1] * b[0],
     )
 
 
-def _scale_vec(v: Vec3, s: float) -> Vec3:
-    return Vec3(v.x * s, v.y * s, v.z * s)
+def _offset(a: _Point, direction: _Point, scale: float) -> _Point:
+    return (
+        a[0] + direction[0] * scale,
+        a[1] + direction[1] * scale,
+        a[2] + direction[2] * scale,
+    )
 
 
-def _dist_sq(a: Vec3, b: Vec3) -> float:
-    dx = a.x - b.x
-    dy = a.y - b.y
-    dz = a.z - b.z
+def _dist_sq(a: _Point, b: _Point) -> float:
+    dx, dy, dz = _sub(a, b)
     return dx * dx + dy * dy + dz * dz
 
 
 def closest_point_on_triangle(p: Vec3, a: Vec3, b: Vec3, c: Vec3) -> tuple[float, Vec3]:
     """Return (squared_distance_mm2, closest_point) from p to triangle (a, b, c)."""
-    ab = b - a
-    ac = c - a
-    ap = p - a
+    distance, point = _closest_point(_xyz(p), _xyz(a), _xyz(b), _xyz(c))
+    return distance, Vec3(*point)
+
+
+def _closest_point(p: _Point, a: _Point, b: _Point, c: _Point) -> tuple[float, _Point]:
+    ab = _sub(b, a)
+    ac = _sub(c, a)
+    ap = _sub(p, a)
     d1 = _dot(ab, ap)
     d2 = _dot(ac, ap)
     if d1 <= 0.0 and d2 <= 0.0:
         return _dist_sq(p, a), a
 
-    bp = p - b
+    bp = _sub(p, b)
     d3 = _dot(ab, bp)
     d4 = _dot(ac, bp)
     if d3 >= 0.0 and d4 <= d3:
@@ -51,10 +72,10 @@ def closest_point_on_triangle(p: Vec3, a: Vec3, b: Vec3, c: Vec3) -> tuple[float
     if vc <= 0.0 and d1 >= 0.0 and d3 <= 0.0:
         denom = d1 - d3
         v = d1 / denom if denom != 0.0 else 0.0
-        q = a + _scale_vec(ab, v)
+        q = _offset(a, ab, v)
         return _dist_sq(p, q), q
 
-    cp = p - c
+    cp = _sub(p, c)
     d5 = _dot(ab, cp)
     d6 = _dot(ac, cp)
     if d6 >= 0.0 and d5 <= d6:
@@ -64,14 +85,14 @@ def closest_point_on_triangle(p: Vec3, a: Vec3, b: Vec3, c: Vec3) -> tuple[float
     if vb <= 0.0 and d2 >= 0.0 and d6 <= 0.0:
         denom = d2 - d6
         w = d2 / denom if denom != 0.0 else 0.0
-        q = a + _scale_vec(ac, w)
+        q = _offset(a, ac, w)
         return _dist_sq(p, q), q
 
     va = d3 * d6 - d5 * d4
     if va <= 0.0 and (d4 - d3) >= 0.0 and (d5 - d6) >= 0.0:
         denom = (d4 - d3) + (d5 - d6)
         w = (d4 - d3) / denom if denom != 0.0 else 0.0
-        q = b + _scale_vec(c - b, w)
+        q = _offset(b, _sub(c, b), w)
         return _dist_sq(p, q), q
 
     denom = va + vb + vc
@@ -80,7 +101,7 @@ def closest_point_on_triangle(p: Vec3, a: Vec3, b: Vec3, c: Vec3) -> tuple[float
     inv_denom = 1.0 / denom
     v = vb * inv_denom
     w = vc * inv_denom
-    q = a + _scale_vec(ab, v) + _scale_vec(ac, w)
+    q = _offset(_offset(a, ab, v), ac, w)
     return _dist_sq(p, q), q
 
 
@@ -119,16 +140,16 @@ def _segments_intersect_2d(
     return False
 
 
-def _segment_intersects_triangle(p0: Vec3, p1: Vec3, a: Vec3, b: Vec3, c: Vec3) -> bool:
-    d = p1 - p0
-    e1 = b - a
-    e2 = c - a
+def _segment_intersects_triangle(p0: _Point, p1: _Point, a: _Point, b: _Point, c: _Point) -> bool:
+    d = _sub(p1, p0)
+    e1 = _sub(b, a)
+    e2 = _sub(c, a)
     h = _cross(d, e2)
     det = _dot(e1, h)
 
     if abs(det) > _EPS:
         inv_det = 1.0 / det
-        s = p0 - a
+        s = _sub(p0, a)
         u = inv_det * _dot(s, h)
         if u < -_EPS or u > 1.0 + _EPS:
             return False
@@ -141,24 +162,28 @@ def _segment_intersects_triangle(p0: Vec3, p1: Vec3, a: Vec3, b: Vec3, c: Vec3) 
 
     # Parallel or coplanar segment vs triangle
     normal = _cross(e1, e2)
-    n_len = normal.length
+    scale = max(abs(normal[0]), abs(normal[1]), abs(normal[2]))
+    if scale == 0.0:
+        return False
+    nx, ny, nz = normal[0] / scale, normal[1] / scale, normal[2] / scale
+    n_len = scale * (nx**2 + ny**2 + nz**2)**0.5
     if n_len <= _EPS:
         return False
-    if abs(_dot(p0 - a, normal)) > _EPS * n_len:
+    if abs(_dot(_sub(p0, a), normal)) > _EPS * n_len:
         return False
 
-    if closest_point_on_triangle(p0, a, b, c)[0] <= _EPS * _EPS:
+    if _closest_point(p0, a, b, c)[0] <= _EPS * _EPS:
         return True
-    if closest_point_on_triangle(p1, a, b, c)[0] <= _EPS * _EPS:
+    if _closest_point(p1, a, b, c)[0] <= _EPS * _EPS:
         return True
 
-    ax, ay, az = abs(normal.x), abs(normal.y), abs(normal.z)
+    ax, ay, az = abs(normal[0]), abs(normal[1]), abs(normal[2])
     if ax >= ay and ax >= az:
-        proj = lambda pt: (pt.y, pt.z)
+        proj = lambda pt: (pt[1], pt[2])
     elif ay >= ax and ay >= az:
-        proj = lambda pt: (pt.x, pt.z)
+        proj = lambda pt: (pt[0], pt[2])
     else:
-        proj = lambda pt: (pt.x, pt.y)
+        proj = lambda pt: (pt[0], pt[1])
 
     sp0, sp1 = proj(p0), proj(p1)
     sa, sb, sc = proj(a), proj(b), proj(c)
@@ -169,24 +194,35 @@ def _segment_intersects_triangle(p0: Vec3, p1: Vec3, a: Vec3, b: Vec3, c: Vec3) 
     )
 
 
+def _bounds(a: _Point, b: _Point, c: _Point) -> _Bounds:
+    return (
+        min(a[0], b[0], c[0]), min(a[1], b[1], c[1]), min(a[2], b[2], c[2]),
+        max(a[0], b[0], c[0]), max(a[1], b[1], c[1]), max(a[2], b[2], c[2]),
+    )
+
+
+def _overlaps(a: _Bounds, b: _Bounds) -> bool:
+    # Preserve the original order and rounding of the helmet-side padding.
+    return not (
+        a[3] + _EPS < b[0] or a[0] - _EPS > b[3]
+        or a[4] + _EPS < b[1] or a[1] - _EPS > b[4]
+        or a[5] + _EPS < b[2] or a[2] - _EPS > b[5]
+    )
+
+
 def triangles_intersect(
     t1: tuple[Vec3, Vec3, Vec3],
     t2: tuple[Vec3, Vec3, Vec3],
 ) -> bool:
     """Return True if two 3D triangles intersect or touch within tolerance."""
-    a0, a1, a2 = t1
-    b0, b1, b2 = t2
+    a = (_xyz(t1[0]), _xyz(t1[1]), _xyz(t1[2]))
+    b = (_xyz(t2[0]), _xyz(t2[1]), _xyz(t2[2]))
+    return _overlaps(_bounds(*a), _bounds(*b)) and _triangles_intersect(*a, *b)
 
-    if (
-        max(a0.x, a1.x, a2.x) + _EPS < min(b0.x, b1.x, b2.x)
-        or min(a0.x, a1.x, a2.x) - _EPS > max(b0.x, b1.x, b2.x)
-        or max(a0.y, a1.y, a2.y) + _EPS < min(b0.y, b1.y, b2.y)
-        or min(a0.y, a1.y, a2.y) - _EPS > max(b0.y, b1.y, b2.y)
-        or max(a0.z, a1.z, a2.z) + _EPS < min(b0.z, b1.z, b2.z)
-        or min(a0.z, a1.z, a2.z) - _EPS > max(b0.z, b1.z, b2.z)
-    ):
-        return False
 
+def _triangles_intersect(
+    a0: _Point, a1: _Point, a2: _Point, b0: _Point, b1: _Point, b2: _Point,
+) -> bool:
     return (
         _segment_intersects_triangle(a0, a1, b0, b1, b2)
         or _segment_intersects_triangle(a1, a2, b0, b1, b2)
@@ -198,7 +234,7 @@ def triangles_intersect(
 
 
 class _BVHNode:
-    __slots__ = ("min_x", "min_y", "min_z", "max_x", "max_y", "max_z", "left", "right", "tri_indices")
+    __slots__ = ("min_x", "min_y", "min_z", "max_x", "max_y", "max_z", "left", "right", "tri_indices", "bounds")
 
     def __init__(
         self,
@@ -207,6 +243,7 @@ class _BVHNode:
         right: "_BVHNode | None" = None,
         tri_indices: tuple[int, ...] = (),
     ) -> None:
+        self.bounds = bounds
         self.min_x, self.min_y, self.min_z, self.max_x, self.max_y, self.max_z = bounds
         self.left = left
         self.right = right
@@ -215,30 +252,19 @@ class _BVHNode:
 
 class _TriangleBVH:
     def __init__(self, mesh: MeshData) -> None:
-        self.vertices = mesh.vertices
+        self.vertices = [_xyz(point) for point in mesh.vertices]
         self.triangles = mesh.triangles
         n = len(self.triangles)
         self._tri_bounds: list[tuple[float, float, float, float, float, float]] = []
         self._centroids: list[tuple[float, float, float]] = []
         for i0, i1, i2 in self.triangles:
             v0, v1, v2 = self.vertices[i0], self.vertices[i1], self.vertices[i2]
-            self._tri_bounds.append(
-                (
-                    min(v0.x, v1.x, v2.x),
-                    min(v0.y, v1.y, v2.y),
-                    min(v0.z, v1.z, v2.z),
-                    max(v0.x, v1.x, v2.x),
-                    max(v0.y, v1.y, v2.y),
-                    max(v0.z, v1.z, v2.z),
-                )
-            )
-            self._centroids.append(
-                (
-                    (v0.x + v1.x + v2.x) / 3.0,
-                    (v0.y + v1.y + v2.y) / 3.0,
-                    (v0.z + v1.z + v2.z) / 3.0,
-                )
-            )
+            self._tri_bounds.append(_bounds(v0, v1, v2))
+            self._centroids.append((
+                (v0[0] + v1[0] + v2[0]) / 3.0,
+                (v0[1] + v1[1] + v2[1]) / 3.0,
+                (v0[2] + v1[2] + v2[2]) / 3.0,
+            ))
         self.root = self._build(list(range(n)), depth=0)
 
     def _build(self, indices: list[int], depth: int) -> _BVHNode:
@@ -264,15 +290,19 @@ class _TriangleBVH:
         )
 
     @staticmethod
-    def _box_dist_sq(node: _BVHNode, p: Vec3) -> float:
-        dx = node.min_x - p.x if p.x < node.min_x else (p.x - node.max_x if p.x > node.max_x else 0.0)
-        dy = node.min_y - p.y if p.y < node.min_y else (p.y - node.max_y if p.y > node.max_y else 0.0)
-        dz = node.min_z - p.z if p.z < node.min_z else (p.z - node.max_z if p.z > node.max_z else 0.0)
+    def _box_dist_sq(node: _BVHNode, p: _Point) -> float:
+        dx = node.min_x - p[0] if p[0] < node.min_x else (p[0] - node.max_x if p[0] > node.max_x else 0.0)
+        dy = node.min_y - p[1] if p[1] < node.min_y else (p[1] - node.max_y if p[1] > node.max_y else 0.0)
+        dz = node.min_z - p[2] if p[2] < node.min_z else (p[2] - node.max_z if p[2] > node.max_z else 0.0)
         return dx * dx + dy * dy + dz * dz
 
     def nearest_point(self, p: Vec3) -> tuple[float, Vec3]:
+        distance, point = self._nearest_point(_xyz(p))
+        return distance, Vec3(*point)
+
+    def _nearest_point(self, p: _Point) -> tuple[float, _Point]:
         best_dist_sq = float("inf")
-        best_point = Vec3(0.0, 0.0, 0.0)
+        best_point = (0.0, 0.0, 0.0)
 
         def visit(node: _BVHNode, lower_sq: float) -> None:
             nonlocal best_dist_sq, best_point
@@ -281,7 +311,7 @@ class _TriangleBVH:
             if node.left is None or node.right is None:
                 for idx in node.tri_indices:
                     i0, i1, i2 = self.triangles[idx]
-                    d_sq, pt = closest_point_on_triangle(p, self.vertices[i0], self.vertices[i1], self.vertices[i2])
+                    d_sq, pt = _closest_point(p, self.vertices[i0], self.vertices[i1], self.vertices[i2])
                     if d_sq < best_dist_sq:
                         best_dist_sq = d_sq
                         best_point = pt
@@ -331,33 +361,36 @@ class _TriangleBVH:
 
     def is_point_inside(self, p: Vec3) -> bool:
         """Odd-even ray cast test for a closed watertight mesh."""
+        return self._is_point_inside(_xyz(p))
+
+    def _is_point_inside(self, p: _Point) -> bool:
         r = self.root
-        if p.x < r.min_x or p.x > r.max_x or p.y < r.min_y or p.y > r.max_y or p.z < r.min_z or p.z > r.max_z:
+        if p[0] < r.min_x or p[0] > r.max_x or p[1] < r.min_y or p[1] > r.max_y or p[2] < r.min_z or p[2] > r.max_z:
             return False
 
-        ray_dir = Vec3(1.0, 0.13719, 0.07311)
-        max_dx = r.max_x - p.x + 1.0
+        ray_dir = _RAY_DIRECTION
+        max_dx = r.max_x - p[0] + 1.0
         candidates = self.query_aabb(
-            p.x - _EPS,
-            p.y - _EPS,
-            p.z - _EPS,
+            p[0] - _EPS,
+            p[1] - _EPS,
+            p[2] - _EPS,
             r.max_x + 1.0,
-            p.y + ray_dir.y * max_dx + _EPS,
-            p.z + ray_dir.z * max_dx + _EPS,
+            p[1] + ray_dir[1] * max_dx + _EPS,
+            p[2] + ray_dir[2] * max_dx + _EPS,
         )
 
         hit_t: list[float] = []
         for idx in candidates:
             i0, i1, i2 = self.triangles[idx]
             a, b, c = self.vertices[i0], self.vertices[i1], self.vertices[i2]
-            e1 = b - a
-            e2 = c - a
+            e1 = _sub(b, a)
+            e2 = _sub(c, a)
             h = _cross(ray_dir, e2)
             det = _dot(e1, h)
             if abs(det) <= 1e-12:
                 continue
             inv_det = 1.0 / det
-            s = p - a
+            s = _sub(p, a)
             u = inv_det * _dot(s, h)
             if u < 0.0 or u > 1.0:
                 continue
@@ -379,6 +412,49 @@ class _TriangleBVH:
         return (unique_hits % 2) == 1
 
 
+def _count_intersections(helmet: _TriangleBVH, head: _TriangleBVH) -> int:
+    """Prune disjoint node pairs and count each helmet triangle at most once."""
+    intersecting: set[int] = set()
+    stack = [(helmet.root, head.root)]
+    while stack:
+        helmet_node, head_node = stack.pop()
+        if not _overlaps(helmet_node.bounds, head_node.bounds):
+            continue
+        if helmet_node.left is not None and (
+            head_node.left is None
+            or max(helmet_node.max_x - helmet_node.min_x,
+                   helmet_node.max_y - helmet_node.min_y,
+                   helmet_node.max_z - helmet_node.min_z)
+            >= max(head_node.max_x - head_node.min_x,
+                   head_node.max_y - head_node.min_y,
+                   head_node.max_z - head_node.min_z)
+        ):
+            stack.append((helmet_node.left, head_node))
+            stack.append((helmet_node.right, head_node))
+        elif head_node.left is not None:
+            stack.append((helmet_node, head_node.left))
+            stack.append((helmet_node, head_node.right))
+        else:
+            for helmet_index in helmet_node.tri_indices:
+                if helmet_index in intersecting:
+                    continue
+                bounds = helmet._tri_bounds[helmet_index]
+                if not _overlaps(bounds, head_node.bounds):
+                    continue
+                a, b, c = helmet.triangles[helmet_index]
+                for head_index in head_node.tri_indices:
+                    if not _overlaps(bounds, head._tri_bounds[head_index]):
+                        continue
+                    d, e, f = head.triangles[head_index]
+                    if _triangles_intersect(
+                        helmet.vertices[a], helmet.vertices[b], helmet.vertices[c],
+                        head.vertices[d], head.vertices[e], head.vertices[f],
+                    ):
+                        intersecting.add(helmet_index)
+                        break
+    return len(intersecting)
+
+
 def evaluate_clearance(
     head_mesh: MeshData,
     helmet_mesh: MeshData,
@@ -398,28 +474,7 @@ def evaluate_clearance(
     helmet_bvh = _TriangleBVH(world_helmet)
     head_bvh = _TriangleBVH(head_mesh)
 
-    # 1. Count helmet triangles intersecting any triangle of the full head mesh
-    intersecting_helmet_tris = 0
-    for h_idx, (hi0, hi1, hi2) in enumerate(world_helmet.triangles):
-        ha = world_helmet.vertices[hi0]
-        hb = world_helmet.vertices[hi1]
-        hc = world_helmet.vertices[hi2]
-        candidates = head_bvh.query_aabb(
-            min(ha.x, hb.x, hc.x) - _EPS,
-            min(ha.y, hb.y, hc.y) - _EPS,
-            min(ha.z, hb.z, hc.z) - _EPS,
-            max(ha.x, hb.x, hc.x) + _EPS,
-            max(ha.y, hb.y, hc.y) + _EPS,
-            max(ha.z, hb.z, hc.z) + _EPS,
-        )
-        for head_tri_idx in candidates:
-            ti0, ti1, ti2 = head_mesh.triangles[head_tri_idx]
-            if triangles_intersect(
-                (ha, hb, hc),
-                (head_mesh.vertices[ti0], head_mesh.vertices[ti1], head_mesh.vertices[ti2]),
-            ):
-                intersecting_helmet_tris += 1
-                break
+    intersecting_helmet_tris = _count_intersections(helmet_bvh, head_bvh)
 
     # 2. Sample points on the contact zone (unique vertices + triangle centroids)
     if zone_triangle_indices is None:
@@ -433,30 +488,28 @@ def evaluate_clearance(
             if type(idx) is not int or not (0 <= idx < num_tris):
                 raise ValueError("Invalid triangle index in zone_triangle_indices")
 
-    sample_points: list[Vec3] = []
+    sample_points: list[_Point] = []
     seen_vertex_indices: set[int] = set()
     for tri_idx in selected_tris:
         i0, i1, i2 = head_mesh.triangles[tri_idx]
         for vi in (i0, i1, i2):
             if vi not in seen_vertex_indices:
                 seen_vertex_indices.add(vi)
-                sample_points.append(head_mesh.vertices[vi])
-        v0, v1, v2 = head_mesh.vertices[i0], head_mesh.vertices[i1], head_mesh.vertices[i2]
-        sample_points.append(
-            Vec3(
-                (v0.x + v1.x + v2.x) / 3.0,
-                (v0.y + v1.y + v2.y) / 3.0,
-                (v0.z + v1.z + v2.z) / 3.0,
-            )
-        )
+                sample_points.append(head_bvh.vertices[vi])
+        v0, v1, v2 = head_bvh.vertices[i0], head_bvh.vertices[i1], head_bvh.vertices[i2]
+        sample_points.append((
+            (v0[0] + v1[0] + v2[0]) / 3.0,
+            (v0[1] + v1[1] + v2[1]) / 3.0,
+            (v0[2] + v1[2] + v2[2]) / 3.0,
+        ))
 
     min_clearance = float("inf")
     max_clearance = -float("inf")
     total_clearance = 0.0
 
     for sample in sample_points:
-        dist_mm, nearest_pt = helmet_bvh.nearest_point(sample)
-        if head_is_watertight and dist_mm > _EPS and head_bvh.is_point_inside(nearest_pt):
+        dist_mm, nearest_pt = helmet_bvh._nearest_point(sample)
+        if head_is_watertight and dist_mm > _EPS and head_bvh._is_point_inside(nearest_pt):
             signed_mm = -dist_mm
         else:
             signed_mm = dist_mm
