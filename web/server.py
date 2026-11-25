@@ -31,6 +31,7 @@ from core.contracts import (
 )
 from core.fitter import fit_helmet
 from core.head_generator import generate_head_mesh
+from core import mannequin as mannequin_mod
 from core.mesh_io import load_obj, load_stl, save_stl
 from core.project_io import ProjectData, ProjectPart, load_project, save_project
 
@@ -144,6 +145,25 @@ class ScenePartEntry:
 PALETTE = ["#79c7ff", "#77e9ca", "#f6bd60", "#f28482", "#bdb2ff", "#9bf6ff"]
 
 
+def _build_reference_body(
+    measurements: HeadMeasurements,
+    mode: str = "mannequin",
+    neck_circumference_mm: float = 380.0,
+) -> Any:
+    gen_fn = getattr(mannequin_mod, "generate_mannequin", None)
+    if mode == "mannequin" and callable(gen_fn):
+        sig = inspect.signature(gen_fn)
+        kwargs: dict[str, Any] = {}
+        if "neck_circumference_mm" in sig.parameters:
+            kwargs["neck_circumference_mm"] = neck_circumference_mm
+        if "radial_segments" in sig.parameters:
+            kwargs["radial_segments"] = 48
+        if "height_rings" in sig.parameters:
+            kwargs["height_rings"] = 32
+        return gen_fn(measurements, **kwargs)
+    return generate_head_mesh(measurements, radial_segments=48, height_rings=32)
+
+
 class StudioState:
     def __init__(self) -> None:
         self.project_name: str = "Nowy projekt"
@@ -153,7 +173,9 @@ class StudioState:
             depth_mm=200.0,
             height_mm=240.0,
         )
-        self.head = generate_head_mesh(self.measurements, radial_segments=48, height_rings=32)
+        self.reference_mode: str = "mannequin"
+        self.neck_circumference_mm: float = 380.0
+        self.head = _build_reference_body(self.measurements, self.reference_mode, self.neck_circumference_mm)
         self.head_visible: bool = True
         self.head_opacity: float = 0.92
         self.parts: dict[str, ScenePartEntry] = {}
@@ -165,6 +187,8 @@ class StudioState:
     def snapshot(self) -> dict[str, Any]:
         return {
             "project_name": self.project_name,
+            "reference_mode": self.reference_mode,
+            "neck_circumference_mm": self.neck_circumference_mm,
             "measurements": asdict(self.measurements),
             "selected_part_id": self.selected_part_id,
             "parts": {
@@ -190,9 +214,13 @@ class StudioState:
         self.project_name = snap["project_name"]
         m_dict = snap["measurements"]
         new_m = HeadMeasurements(**m_dict)
-        if new_m != self.measurements:
+        new_mode = snap.get("reference_mode", self.reference_mode)
+        new_neck = float(snap.get("neck_circumference_mm", self.neck_circumference_mm))
+        if new_m != self.measurements or new_mode != self.reference_mode or new_neck != self.neck_circumference_mm:
             self.measurements = new_m
-            self.head = generate_head_mesh(self.measurements, radial_segments=48, height_rings=32)
+            self.reference_mode = new_mode
+            self.neck_circumference_mm = new_neck
+            self.head = _build_reference_body(self.measurements, self.reference_mode, self.neck_circumference_mm)
         self.selected_part_id = snap["selected_part_id"]
         for pid, pdata in snap["parts"].items():
             if pid in self.parts:
@@ -233,6 +261,8 @@ class StudioState:
             "can_redo": len(self.redo_stack) > 0,
             "selected_part_id": self.selected_part_id,
             "head": {
+                "reference_mode": self.reference_mode,
+                "neck_circumference_mm": round(self.neck_circumference_mm, 1),
                 "measurements": asdict(self.measurements),
                 "actual_circumference_mm": round(self.head.actual_circumference_mm, 2),
                 "triangles": len(self.head.mesh.triangles),
@@ -313,7 +343,7 @@ def create_app(initial_helmet: Path | None = None, initial_rotation: Vec3 | None
     async def api_head_update(request: Request) -> JSONResponse:
         body = await request.json()
         try:
-            if any(k in body for k in ("circumference_mm", "width_mm", "depth_mm", "height_mm")):
+            if any(k in body for k in ("circumference_mm", "width_mm", "depth_mm", "height_mm", "neck_circumference_mm", "reference_mode")):
                 state.push_undo()
                 new_m = HeadMeasurements(
                     circumference_mm=float(body.get("circumference_mm", state.measurements.circumference_mm)),
@@ -321,8 +351,15 @@ def create_app(initial_helmet: Path | None = None, initial_rotation: Vec3 | None
                     depth_mm=float(body.get("depth_mm", state.measurements.depth_mm)),
                     height_mm=float(body.get("height_mm", state.measurements.height_mm)),
                 )
+                if "neck_circumference_mm" in body:
+                    neck_val = float(body["neck_circumference_mm"])
+                    if neck_val <= 150.0 or neck_val >= 700.0:
+                        raise ValueError("neck_circumference_mm musi być w zakresie 150..700 mm")
+                    state.neck_circumference_mm = neck_val
+                if "reference_mode" in body and body["reference_mode"] in ("mannequin", "head"):
+                    state.reference_mode = str(body["reference_mode"])
                 state.measurements = new_m
-                state.head = generate_head_mesh(new_m, radial_segments=48, height_rings=32)
+                state.head = _build_reference_body(state.measurements, state.reference_mode, state.neck_circumference_mm)
                 for p in state.parts.values():
                     p.last_clearance = None
             if "visible" in body:
@@ -430,8 +467,13 @@ def create_app(initial_helmet: Path | None = None, initial_rotation: Vec3 | None
         max_mm = float(body.get("max_clearance_mm", 22.0))
 
         def _fit() -> Any:
+            sizing_head = (
+                generate_head_mesh(state.measurements, radial_segments=32, height_rings=24)
+                if state.reference_mode == "mannequin"
+                else state.head
+            )
             return fit_helmet(
-                state.head,
+                sizing_head,
                 part.mesh,
                 initial_rotation=part.transform.rotation,
                 target_clearance_mm=target_mm,
@@ -518,7 +560,7 @@ def create_app(initial_helmet: Path | None = None, initial_rotation: Vec3 | None
         state.project_name = proj.name
         if proj.head_measurements is not None:
             state.measurements = proj.head_measurements
-            state.head = generate_head_mesh(state.measurements, radial_segments=48, height_rings=32)
+            state.head = _build_reference_body(state.measurements, state.reference_mode, state.neck_circumference_mm)
 
         # Dopasuj transformacje z projektu do załadowanych już części (po part_id lub nazwie)
         by_name = {p.name: p for p in state.parts.values()}

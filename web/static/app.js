@@ -189,8 +189,10 @@ async function renderState(newState, reloadHead = false) {
   document.getElementById('partCount').textContent = String(appState.parts.length);
 
   const m = appState.head.measurements;
+  const isMannequin = appState.head.reference_mode !== 'head';
+  document.getElementById('regionPill').textContent = isMannequin ? 'Manekin' : 'Elipsoida';
   document.getElementById('editMeasurementsBtn').textContent =
-    `Wymiary głowy (${Math.round(m.circumference_mm)} mm)…`;
+    `Wymiary (${Math.round(m.circumference_mm)} / szyja ${Math.round(appState.head.neck_circumference_mm ?? 380)} mm)…`;
   document.getElementById('headVisibleChk').checked = appState.head.visible;
   document.getElementById('headOpacityRange').value = Math.round(appState.head.opacity * 100);
 
@@ -602,20 +604,23 @@ document.getElementById('redo').onclick = async () => {
 const headDialog = document.getElementById('headDialog');
 document.getElementById('editMeasurementsBtn').onclick = () => {
   const m = appState.head.measurements;
+  document.getElementById('inpRefMode').value = appState.head.reference_mode || 'mannequin';
   document.getElementById('inpCirc').value = m.circumference_mm;
   document.getElementById('inpWidth').value = m.width_mm;
   document.getElementById('inpDepth').value = m.depth_mm;
   document.getElementById('inpHeight').value = m.height_mm;
+  document.getElementById('inpNeck').value = appState.head.neck_circumference_mm ?? 380;
   headDialog.showModal();
 };
 document.getElementById('cancelHeadBtn').onclick = () => headDialog.close();
 for (const btn of headDialog.querySelectorAll('[data-preset]')) {
   btn.onclick = () => {
-    const [c, w, d, h] = btn.dataset.preset.split(',');
+    const [c, w, d, h, n] = btn.dataset.preset.split(',');
     document.getElementById('inpCirc').value = c;
     document.getElementById('inpWidth').value = w;
     document.getElementById('inpDepth').value = d;
     document.getElementById('inpHeight').value = h;
+    if (n) document.getElementById('inpNeck').value = n;
   };
 }
 document.getElementById('headForm').onsubmit = async (e) => {
@@ -624,10 +629,12 @@ document.getElementById('headForm').onsubmit = async (e) => {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
+      reference_mode: document.getElementById('inpRefMode').value,
       circumference_mm: parseFloat(document.getElementById('inpCirc').value),
       width_mm: parseFloat(document.getElementById('inpWidth').value),
       depth_mm: parseFloat(document.getElementById('inpDepth').value),
       height_mm: parseFloat(document.getElementById('inpHeight').value),
+      neck_circumference_mm: parseFloat(document.getElementById('inpNeck').value),
     }),
   });
   headDialog.close();

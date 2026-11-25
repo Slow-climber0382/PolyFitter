@@ -62,7 +62,7 @@
           <h1 id="viewTitle">Widok 3D</h1>
         </div>
         <button id="editMeasurementsBtn">Wymiary głowy (580 mm)…</button>
-        <span id="regionPill" class="pill">Głowa</span>
+        <span id="regionPill" class="pill">Manekin</span>
       </div>
 
       <div class="viewer">
@@ -208,15 +208,22 @@
     <form method="dialog" id="headForm">
       <h2>Parametry głowy (mm)</h2>
       <div class="quick-btns" style="margin-top:10px;">
-        <button type="button" data-preset="550,152,190,228">S (550 mm)</button>
-        <button type="button" data-preset="580,160,200,240">M (580 mm)</button>
-        <button type="button" data-preset="610,168,210,252">L (610 mm)</button>
+        <button type="button" data-preset="550,152,190,228,350">S (550 / 350)</button>
+        <button type="button" data-preset="580,160,200,240,380">M (580 / 380)</button>
+        <button type="button" data-preset="610,168,210,252,410">L (610 / 410)</button>
       </div>
       <div class="dialog-grid">
+        <label class="dialog-field">Bryła odniesienia
+          <select id="inpRefMode">
+            <option value="mannequin">Manekin (głowa + szyja + barki)</option>
+            <option value="head">Prosta głowa (elipsoida)</option>
+          </select>
+        </label>
         <label class="dialog-field">Obwód na wysokości czoła (mm)<input type="number" id="inpCirc" step="1" min="400" max="750" required></label>
         <label class="dialog-field">Szerokość (ucho–ucho, mm)<input type="number" id="inpWidth" step="1" min="100" max="260" required></label>
         <label class="dialog-field">Głębokość (czoło–potylica, mm)<input type="number" id="inpDepth" step="1" min="120" max="280" required></label>
         <label class="dialog-field">Wysokość (podbródek–czubek, mm)<input type="number" id="inpHeight" step="1" min="140" max="320" required></label>
+        <label class="dialog-field">Obwód szyi (mm)<input type="number" id="inpNeck" step="1" min="220" max="600" required></label>
       </div>
       <div class="dialog-actions">
         <button type="button" id="cancelHeadBtn">Anuluj</button>

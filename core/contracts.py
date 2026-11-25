@@ -154,6 +154,16 @@ class MeshData:
 
 
 @dataclass(frozen=True)
+class RegionalClearance:
+    """Signed clearance statistics for the sampled points of one region."""
+
+    min_clearance_mm: float
+    max_clearance_mm: float
+    mean_clearance_mm: float
+    sample_count: int
+
+
+@dataclass(frozen=True)
 class FitClearanceReport:
     """Validity of supplied statistics, NOT proof of a complete collision check.
 
@@ -164,6 +174,8 @@ class FitClearanceReport:
     max_clearance_mm: float
     mean_clearance_mm: float
     intersecting_triangles: int
+    cranium: RegionalClearance | None = None
+    lower: RegionalClearance | None = None
 
     def __post_init__(self) -> None:
         for name in ("min_clearance_mm", "max_clearance_mm", "mean_clearance_mm"):

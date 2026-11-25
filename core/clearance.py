@@ -1,7 +1,8 @@
 """Exact 3D mesh-to-mesh clearance and triangle intersection analysis in mm (Y-up)."""
 from collections.abc import Sequence
 import math
-from .contracts import FitClearanceReport, MeshData, Transform3D, Vec3
+from sys import float_info
+from .contracts import FitClearanceReport, MeshData, RegionalClearance, Transform3D, Vec3
 from .head_generator import GeneratedHead
 from .transforms import apply_transform
 
@@ -463,6 +464,43 @@ def evaluate_clearance(
     head_is_watertight: bool = True,
 ) -> FitClearanceReport:
     """Measure 3D signed clearance and triangle collisions in mm (Y-up)."""
+    return _evaluate_clearance(
+        head_mesh, helmet_mesh, zone_triangle_indices, helmet_transform, head_is_watertight
+    )
+
+
+def evaluate_regional_clearance(
+    head_mesh: MeshData,
+    helmet_mesh: MeshData,
+    height_mm: float,
+    helmet_transform: Transform3D | None = None,
+    head_is_watertight: bool = True,
+) -> FitClearanceReport:
+    """Sample the entire head, with the chin at Y=0 and crown at Y=height_mm.
+
+    The boundary at 45% of height belongs to cranium. Empty regions are None.
+    Collision counts describe the full mesh pair; they are not regional counts.
+    """
+    if (
+        isinstance(height_mm, bool)
+        or not isinstance(height_mm, (int, float))
+        or not 0 < height_mm <= float_info.max
+    ):
+        raise ValueError("height_mm must be finite and positive")
+    return _evaluate_clearance(
+        head_mesh, helmet_mesh, None, helmet_transform, head_is_watertight,
+        regional_cutoff_y=0.45 * height_mm,
+    )
+
+
+def _evaluate_clearance(
+    head_mesh: MeshData,
+    helmet_mesh: MeshData,
+    zone_triangle_indices: Sequence[int] | None,
+    helmet_transform: Transform3D | None,
+    head_is_watertight: bool,
+    regional_cutoff_y: float | None = None,
+) -> FitClearanceReport:
     if not isinstance(head_mesh, MeshData):
         raise ValueError("head_mesh must be MeshData")
     if not isinstance(helmet_mesh, MeshData):
@@ -507,6 +545,8 @@ def evaluate_clearance(
     max_clearance = -float("inf")
     total_clearance = 0.0
 
+    cranium_samples: list[float] = []
+    lower_samples: list[float] = []
     for sample in sample_points:
         dist_mm, nearest_pt = helmet_bvh._nearest_point(sample)
         if head_is_watertight and dist_mm > _EPS and head_bvh._is_point_inside(nearest_pt):
@@ -519,6 +559,9 @@ def evaluate_clearance(
         if signed_mm > max_clearance:
             max_clearance = signed_mm
         total_clearance += signed_mm
+        if regional_cutoff_y is not None:
+            region = cranium_samples if sample[1] >= regional_cutoff_y else lower_samples
+            region.append(signed_mm)
 
     mean_clearance = total_clearance / len(sample_points)
     return FitClearanceReport(
@@ -526,7 +569,15 @@ def evaluate_clearance(
         max_clearance_mm=max_clearance,
         mean_clearance_mm=mean_clearance,
         intersecting_triangles=intersecting_helmet_tris,
+        cranium=_regional_statistics(cranium_samples),
+        lower=_regional_statistics(lower_samples),
     )
+
+
+def _regional_statistics(samples: list[float]) -> RegionalClearance | None:
+    if not samples:
+        return None
+    return RegionalClearance(min(samples), max(samples), sum(samples) / len(samples), len(samples))
 
 
 def evaluate_helmet_clearance(
