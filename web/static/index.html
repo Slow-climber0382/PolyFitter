@@ -1,0 +1,229 @@
+<!doctype html>
+<html lang="pl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'none'">
+  <title>PolyFitter — Studio dopasowania 3D</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <header class="top">
+    <div class="brand">
+      <img src="/icon.svg" alt="">
+      <div>
+        <strong>PolyFitter</strong>
+        <span>Studio dopasowania 3D</span>
+      </div>
+    </div>
+    <div class="project-title" id="projectTitle">Nowy projekt (mm, Y-up)</div>
+    <nav aria-label="Projekt">
+      <button id="undo" disabled title="Ctrl+Z">Cofnij</button>
+      <button id="redo" disabled title="Ctrl+Shift+Z">Ponów</button>
+      <button id="newProject">Nowy</button>
+      <button id="openProjectBtn">Otwórz projekt</button>
+      <button id="saveProjectBtn">Zapisz projekt</button>
+      <button class="accent" id="exportStlBtn" disabled>Eksport STL</button>
+    </nav>
+  </header>
+
+  <main>
+    <aside class="library" aria-label="Elementy projektu">
+      <div class="panel-header">
+        <h2>Elementy</h2>
+        <span id="partCount" class="pill">0</span>
+      </div>
+      <div class="library-tools">
+        <button id="importBtn" class="primary-wide">＋ Importuj STL / OBJ</button>
+        <label class="inline-field">
+          Jednostki pliku
+          <select id="unitsSelect">
+            <option value="1" selected>mm</option>
+            <option value="10">cm</option>
+            <option value="25.4">cale</option>
+          </select>
+        </label>
+        <div style="display:flex; gap:6px;">
+          <input type="text" id="localPathInput" placeholder="/sciezka/do/helmu.stl" aria-label="Lokalna ścieżka pliku">
+          <button id="loadLocalBtn" title="Wczytaj z dysku">Wczytaj</button>
+        </div>
+      </div>
+      <p id="importReport" class="hint" role="status">Załaduj skorupę hełmu i dodatki.</p>
+      <ul id="partsList" class="parts"></ul>
+      <div class="library-bottom">
+        <button id="removePartBtn" class="danger" disabled>Usuń zaznaczony element</button>
+      </div>
+    </aside>
+
+    <section class="workspace" aria-label="Widok 3D">
+      <div class="viewport-top">
+        <div>
+          <span class="eyebrow">PRZESTRZEŃ ROBOCZA • JEDNOSTKI MM • Y-UP</span>
+          <h1 id="viewTitle">Widok 3D</h1>
+        </div>
+        <button id="editMeasurementsBtn">Wymiary głowy (580 mm)…</button>
+        <span id="regionPill" class="pill">Głowa</span>
+      </div>
+
+      <div class="viewer">
+        <canvas id="viewport" tabindex="0" aria-label="Model 3D"></canvas>
+
+        <div class="gizmo-tools" aria-label="Tryb gizma 3D">
+          <button id="gizmoTranslate" class="active-toggle" data-mode="translate" title="Przesuń (W)">Przesuń [W]</button>
+          <button id="gizmoRotate" data-mode="rotate" title="Obróć (E)">Obróć [E]</button>
+          <button id="gizmoScale" data-mode="scale" title="Skaluj osie X/Y/Z (R)">Skaluj [R]</button>
+        </div>
+
+        <div class="view-tools" aria-label="Sterowanie widokiem">
+          <button data-view="front">Przód</button>
+          <button data-view="left">Lewo</button>
+          <button data-view="right">Prawo</button>
+          <button data-view="top">Góra</button>
+          <button data-view="back">Tył</button>
+          <button data-view="reset">Reset</button>
+        </div>
+
+        <div class="hud-badge" id="hudBadge">LPM: obrót kamery • PPM: przesuw • Kółko: zoom</div>
+      </div>
+    </section>
+
+    <aside class="inspector" aria-label="Inspektor skalowania i dopasowania">
+      <div class="panel-header">
+        <h2>Skalowanie i pozycja</h2>
+        <span id="selectedBadge" class="pill">Brak</span>
+      </div>
+
+      <div class="inspector-section" id="transformSection">
+        <div class="section-row">
+          <h3>Skala ręczna (%)</h3>
+          <button id="lockScaleBtn" aria-pressed="true" title="Zablokuj lub odblokuj proporcje X/Y/Z">🔒 Proporcje</button>
+        </div>
+        <div class="axis-grid">
+          <div class="axis-row">
+            <span class="axis-tag axis-x">X</span>
+            <input type="range" id="scaleXRange" min="40" max="180" step="0.2" value="100" disabled>
+            <input type="number" id="scaleXNum" min="10" max="500" step="0.1" value="100.0" disabled>
+          </div>
+          <div class="axis-row">
+            <span class="axis-tag axis-y">Y</span>
+            <input type="range" id="scaleYRange" min="40" max="180" step="0.2" value="100" disabled>
+            <input type="number" id="scaleYNum" min="10" max="500" step="0.1" value="100.0" disabled>
+          </div>
+          <div class="axis-row">
+            <span class="axis-tag axis-z">Z</span>
+            <input type="range" id="scaleZRange" min="40" max="180" step="0.2" value="100" disabled>
+            <input type="number" id="scaleZNum" min="10" max="500" step="0.1" value="100.0" disabled>
+          </div>
+        </div>
+
+        <div class="dims-box" title="Wymiary gabarytowe elementu po przeskalowaniu">
+          <div><span>Szer. X</span><strong id="dimX">—</strong></div>
+          <div><span>Wys. Y</span><strong id="dimY">—</strong></div>
+          <div><span>Gł. Z</span><strong id="dimZ">—</strong></div>
+        </div>
+
+        <h3>Pozycja w scenie (mm)</h3>
+        <div class="axis-grid">
+          <div class="axis-row">
+            <span class="axis-tag axis-x">X</span>
+            <input type="range" id="posXRange" min="-250" max="250" step="0.5" value="0" disabled>
+            <input type="number" id="posXNum" step="0.5" value="0.0" disabled>
+          </div>
+          <div class="axis-row">
+            <span class="axis-tag axis-y">Y</span>
+            <input type="range" id="posYRange" min="-250" max="350" step="0.5" value="0" disabled>
+            <input type="number" id="posYNum" step="0.5" value="0.0" disabled>
+          </div>
+          <div class="axis-row">
+            <span class="axis-tag axis-z">Z</span>
+            <input type="range" id="posZRange" min="-250" max="250" step="0.5" value="0" disabled>
+            <input type="number" id="posZNum" step="0.5" value="0.0" disabled>
+          </div>
+        </div>
+
+        <h3>Obrót (°) i orientacja osi</h3>
+        <div class="axis-grid">
+          <div class="axis-row">
+            <span class="axis-tag axis-x">X</span>
+            <input type="range" id="rotXRange" min="-180" max="180" step="1" value="0" disabled>
+            <input type="number" id="rotXNum" min="-360" max="360" step="1" value="0" disabled>
+          </div>
+          <div class="axis-row">
+            <span class="axis-tag axis-y">Y</span>
+            <input type="range" id="rotYRange" min="-180" max="180" step="1" value="0" disabled>
+            <input type="number" id="rotYNum" min="-360" max="360" step="1" value="0" disabled>
+          </div>
+          <div class="axis-row">
+            <span class="axis-tag axis-z">Z</span>
+            <input type="range" id="rotZRange" min="-180" max="180" step="1" value="0" disabled>
+            <input type="number" id="rotZNum" min="-360" max="360" step="1" value="0" disabled>
+          </div>
+        </div>
+        <div class="quick-btns">
+          <button id="rotMinus90X" disabled>-90° X (Z→Y)</button>
+          <button id="rotPlus90X" disabled>+90° X</button>
+          <button id="rot180Y" disabled>180° Y (Przód)</button>
+        </div>
+      </div>
+
+      <div class="inspector-section">
+        <h3>Przezroczystość (podgląd wnętrza)</h3>
+        <label class="inline-field">
+          Przezroczystość hełmu
+          <span id="partOpacityVal">88%</span>
+        </label>
+        <input type="range" id="partOpacityRange" min="10" max="100" step="2" value="88" disabled>
+
+        <label class="inline-field">
+          Głowa referencyjna
+          <span><input type="checkbox" id="headVisibleChk" checked> widoczna</span>
+        </label>
+        <input type="range" id="headOpacityRange" min="15" max="100" step="5" value="92">
+      </div>
+
+      <div class="inspector-section">
+        <div class="section-row">
+          <h3>Asystent i kontrola 3D</h3>
+          <span id="clearanceStatusPill" class="pill">—</span>
+        </div>
+        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:7px;">
+          <button id="autoFitBtn" disabled title="Ustawia wstępną skalę jednorodną jako punkt startowy">Auto-Fit (start)</button>
+          <button id="checkClearanceBtn" class="accent" disabled>Sprawdź luz 3D</button>
+        </div>
+        <div class="metrics-grid">
+          <div class="metric-card"><span>Min. luz / kolizja</span><strong id="mMin">—</strong></div>
+          <div class="metric-card"><span>Kolizje trójkątów</span><strong id="mCol">—</strong></div>
+          <div class="metric-card"><span>Czaszka (góra)</span><strong id="mCranium">—</strong></div>
+          <div class="metric-card"><span>Twarz / kołnierz</span><strong id="mLower">—</strong></div>
+        </div>
+      </div>
+    </aside>
+  </main>
+
+  <input type="file" id="fileInput" accept=".stl,.obj" multiple hidden>
+  <input type="file" id="projectFileInput" accept=".json" hidden>
+
+  <dialog id="headDialog">
+    <form method="dialog" id="headForm">
+      <h2>Parametry głowy (mm)</h2>
+      <div class="quick-btns" style="margin-top:10px;">
+        <button type="button" data-preset="550,152,190,228">S (550 mm)</button>
+        <button type="button" data-preset="580,160,200,240">M (580 mm)</button>
+        <button type="button" data-preset="610,168,210,252">L (610 mm)</button>
+      </div>
+      <div class="dialog-grid">
+        <label class="dialog-field">Obwód na wysokości czoła (mm)<input type="number" id="inpCirc" step="1" min="400" max="750" required></label>
+        <label class="dialog-field">Szerokość (ucho–ucho, mm)<input type="number" id="inpWidth" step="1" min="100" max="260" required></label>
+        <label class="dialog-field">Głębokość (czoło–potylica, mm)<input type="number" id="inpDepth" step="1" min="120" max="280" required></label>
+        <label class="dialog-field">Wysokość (podbródek–czubek, mm)<input type="number" id="inpHeight" step="1" min="140" max="320" required></label>
+      </div>
+      <div class="dialog-actions">
+        <button type="button" id="cancelHeadBtn">Anuluj</button>
+        <button type="submit" class="accent">Zastosuj wymiary</button>
+      </div>
+    </form>
+  </dialog>
+
+  <script type="module" src="/app.js"></script>
+</body>
+</html>
