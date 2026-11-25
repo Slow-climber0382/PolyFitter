@@ -56,7 +56,13 @@ def test_web_api_manual_nonuniform_scaling_and_exports(tmp_path):
         assert updated_part["transform"]["scale"] == [1.05, 1.07, 1.03]
         assert updated_part["transform"]["position"] == [0.0, 4.0, 0.0]
 
-        # 5. Analiza prześwitu 3D (w tym raport strefowy)
+        # 5. Analiza prześwitu 3D (domyślny manekin z nosem/uszami wykrywa kolizje na ciasnej skorupie)
+        r_clr_man = client.post(f"/api/parts/{pid}/clearance")
+        assert r_clr_man.status_code == 200
+        assert r_clr_man.json()["clearance"]["intersecting_triangles"] > 0
+
+        # Przełączenie na prostą elipsoidę potwierdza 0 kolizji na tej samej skorupie
+        assert client.post("/api/head", json={"reference_mode": "head"}).status_code == 200
         r_clr = client.post(f"/api/parts/{pid}/clearance")
         assert r_clr.status_code == 200
         clr = r_clr.json()["clearance"]

@@ -106,7 +106,7 @@ class ScenePartEntry:
     mesh: MeshData
     transform: Transform3D = field(default_factory=Transform3D)
     visible: bool = True
-    opacity: float = 0.88
+    opacity: float = 1.0
     color: str = "#79c7ff"
     last_clearance: dict[str, Any] | None = None
 

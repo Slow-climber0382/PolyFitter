@@ -68,10 +68,14 @@
       <div class="viewer">
         <canvas id="viewport" tabindex="0" aria-label="Model 3D"></canvas>
 
-        <div class="gizmo-tools" aria-label="Tryb gizma 3D">
+        <div class="gizmo-tools" aria-label="Tryb gizma i podglądu 3D">
           <button id="gizmoTranslate" class="active-toggle" data-mode="translate" title="Przesuń (W)">Przesuń [W]</button>
           <button id="gizmoRotate" data-mode="rotate" title="Obróć (E)">Obróć [E]</button>
           <button id="gizmoScale" data-mode="scale" title="Skaluj osie X/Y/Z (R)">Skaluj [R]</button>
+          <span style="width:1px; background:#384152; margin:0 2px;"></span>
+          <button id="viewSolidBtn" class="active-toggle" title="Pełny nieprzezroczysty model">Pełny</button>
+          <button id="viewXrayBtn" title="Półprzezroczysty podgląd wnętrza (45%)">X-Ray</button>
+          <button id="viewWireBtn" title="Siatka trójkątów (Wireframe)">Siatka</button>
         </div>
 
         <div class="view-tools" aria-label="Sterowanie widokiem">
@@ -171,9 +175,9 @@
         <h3>Przezroczystość (podgląd wnętrza)</h3>
         <label class="inline-field">
           Przezroczystość hełmu
-          <span id="partOpacityVal">88%</span>
+          <span id="partOpacityVal">100%</span>
         </label>
-        <input type="range" id="partOpacityRange" min="10" max="100" step="2" value="88" disabled>
+        <input type="range" id="partOpacityRange" min="10" max="100" step="2" value="100" disabled>
 
         <label class="inline-field">
           Głowa referencyjna

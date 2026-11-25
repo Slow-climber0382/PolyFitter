@@ -98,14 +98,15 @@ async function ensurePartMesh(part) {
     const res = await fetch(`/api/parts/${part.part_id}/geometry`);
     const buf = await res.arrayBuffer();
     const geom = decodeBinaryGeometry(buf);
+    const isOpaque = part.opacity >= 0.99;
     const mat = new THREE.MeshStandardMaterial({
       color: new THREE.Color(part.color || '#79c7ff'),
       roughness: 0.42,
       metalness: 0.14,
-      transparent: true,
+      transparent: !isOpaque,
       opacity: part.opacity,
-      side: THREE.DoubleSide,
-      depthWrite: part.opacity >= 0.98,
+      side: isOpaque ? THREE.FrontSide : THREE.DoubleSide,
+      depthWrite: isOpaque,
     });
     obj = new THREE.Mesh(geom, mat);
     scene.add(obj);
@@ -116,9 +117,13 @@ async function ensurePartMesh(part) {
 }
 
 function applyPartPropsToThree(part, obj) {
+  const isOpaque = part.opacity >= 0.99;
   obj.visible = part.visible;
+  obj.material.transparent = !isOpaque;
   obj.material.opacity = part.opacity;
-  obj.material.depthWrite = part.opacity >= 0.98;
+  obj.material.side = isOpaque ? THREE.FrontSide : THREE.DoubleSide;
+  obj.material.depthWrite = isOpaque;
+  obj.material.needsUpdate = true;
   obj.position.set(...part.transform.position);
   obj.rotation.order = 'XYZ';
   obj.rotation.set(
@@ -440,21 +445,35 @@ document.getElementById('centerOnHeadBtn').onclick = () => {
   pushTransformToServer(true);
 };
 
-document.getElementById('partOpacityRange').oninput = async (e) => {
+async function setSelectedPartOpacity(op) {
   const sel = currentPart();
   if (!sel) return;
-  const op = parseFloat(e.target.value) / 100.0;
-  document.getElementById('partOpacityVal').textContent = `${e.target.value}%`;
+  sel.opacity = op;
+  const pct = Math.round(op * 100);
+  document.getElementById('partOpacityRange').value = pct;
+  document.getElementById('partOpacityVal').textContent = `${pct}%`;
+  document.getElementById('viewSolidBtn').classList.toggle('active-toggle', pct >= 99);
+  document.getElementById('viewXrayBtn').classList.toggle('active-toggle', pct < 99);
   const obj = partMeshes.get(sel.part_id);
-  if (obj) {
-    obj.material.opacity = op;
-    obj.material.depthWrite = op >= 0.98;
-  }
+  if (obj) applyPartPropsToThree(sel, obj);
   await fetch(`/api/parts/${sel.part_id}/transform`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ opacity: op }),
   });
+}
+
+document.getElementById('partOpacityRange').oninput = (e) => {
+  setSelectedPartOpacity(parseFloat(e.target.value) / 100.0);
+};
+document.getElementById('viewSolidBtn').onclick = () => setSelectedPartOpacity(1.0);
+document.getElementById('viewXrayBtn').onclick = () => setSelectedPartOpacity(0.45);
+document.getElementById('viewWireBtn').onclick = (e) => {
+  const nextWire = !e.currentTarget.classList.contains('active-toggle');
+  e.currentTarget.classList.toggle('active-toggle', nextWire);
+  for (const obj of partMeshes.values()) {
+    obj.material.wireframe = nextWire;
+  }
 };
 
 document.getElementById('headVisibleChk').onchange = async (e) => {
