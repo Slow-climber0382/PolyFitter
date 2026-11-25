@@ -29,7 +29,7 @@ from core.contracts import (
     Transform3D,
     Vec3,
 )
-from core.fitter import fit_helmet
+from core.fitter import fit_helmet, fit_helmet_to_mannequin
 from core.head_generator import generate_head_mesh
 from core import mannequin as mannequin_mod
 from core.mesh_io import load_obj, load_stl, save_stl
@@ -467,13 +467,18 @@ def create_app(initial_helmet: Path | None = None, initial_rotation: Vec3 | None
         max_mm = float(body.get("max_clearance_mm", 22.0))
 
         def _fit() -> Any:
-            sizing_head = (
-                generate_head_mesh(state.measurements, radial_segments=32, height_rings=24)
-                if state.reference_mode == "mannequin"
-                else state.head
-            )
+            if state.reference_mode == "mannequin":
+                return fit_helmet_to_mannequin(
+                    state.head,
+                    part.mesh,
+                    head_measurements=state.measurements,
+                    initial_rotation=part.transform.rotation,
+                    target_clearance_mm=target_mm,
+                    min_clearance_mm=min_mm,
+                    max_clearance_mm=max_mm,
+                )
             return fit_helmet(
-                sizing_head,
+                state.head,
                 part.mesh,
                 initial_rotation=part.transform.rotation,
                 target_clearance_mm=target_mm,

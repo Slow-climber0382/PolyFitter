@@ -6,8 +6,8 @@ from .clearance import (
     _Bounds, _BVHNode, _EPS, _Point, _TriangleBVH, _bounds, _overlaps,
     _triangles_intersect,
 )
-from .contracts import FitClearanceReport, MeshData, Transform3D, Vec3
-from .head_generator import GeneratedHead
+from .contracts import FitClearanceReport, HeadMeasurements, MeshData, Transform3D, Vec3
+from .head_generator import GeneratedHead, generate_head_mesh
 from .transforms import apply_transform
 
 
@@ -409,3 +409,99 @@ def fit_helmet(
         report=best_report,
         converged=best_report.is_valid,
     )
+
+
+def fit_helmet_to_mannequin(
+    mannequin: GeneratedHead,
+    helmet_mesh: MeshData,
+    *,
+    head_measurements: HeadMeasurements,
+    initial_rotation: Vec3 = Vec3(0.0, 0.0, 0.0),
+    target_clearance_mm: float = 3.5,
+    min_clearance_mm: float = 1.5,
+    max_clearance_mm: float = 25.0,
+) -> FitResult:
+    """Refine an ellipsoid fit against a Y-up, +Z-front anatomical mannequin.
+
+    Clearance samples cover the head at Y >= 0, including the nose, ears, jaw
+    and occiput. Collision tests include the entire mannequin. Convergence
+    requires zero collisions and the requested minimum sampled clearance.
+    The requested maximum and target rank feasible corrections; uncovered
+    head surfaces can still report a large maximum. The search is bounded.
+    """
+    if not isinstance(mannequin, GeneratedHead):
+        raise ValueError("mannequin must be GeneratedHead")
+    mannequin.mesh.__post_init__()
+    if not mannequin.mesh.triangles:
+        raise ValueError("mannequin must contain triangles")
+
+    # Use the established fitter and keep broad shoulders out of the seed.
+    smooth_head = generate_head_mesh(head_measurements)
+    seed = fit_helmet(
+        smooth_head, helmet_mesh, initial_rotation,
+        target_clearance_mm, min_clearance_mm, max_clearance_mm,
+    ).transform
+    helmet_bvh = _TriangleBVH(helmet_mesh)
+    head_bvh = _TriangleBVH(mannequin.mesh)
+    mesh = mannequin.mesh
+    # The legacy cranium subset by itself can exclude the nose and ears.
+    head_faces = [
+        index for index, face in enumerate(mesh.triangles)
+        if any(mesh.vertices[i].y >= 0 for i in face)
+    ]
+    sampling_head = GeneratedHead(mesh, head_faces, mannequin.actual_circumference_mm)
+    samples = [
+        point for point in _collect_cranium_samples(sampling_head, max_samples=None)
+        if point.y >= 0
+    ]
+    if not samples:
+        raise ValueError("mannequin has no head surface at Y >= 0")
+
+    pivot = smooth_head.mesh.bounding_box.center
+
+    def evaluated(transform: Transform3D) -> FitResult:
+        report = _evaluate_candidate(helmet_bvh, head_bvh, samples, transform)
+        converged = (
+            report.intersecting_triangles == 0
+            and report.min_clearance_mm >= min_clearance_mm
+        )
+        return FitResult(transform, report, converged)
+
+    def rank(result: FitResult) -> tuple[bool, int, float, float]:
+        report = result.report
+        return (
+            not result.converged,
+            report.intersecting_triangles,
+            max(0.0, min_clearance_mm - report.min_clearance_mm),
+            abs(report.mean_clearance_mm - target_clearance_mm)
+            + max(0.0, report.max_clearance_mm - max_clearance_mm),
+        )
+
+    best = evaluated(seed)
+    if best.converged:
+        return best
+
+    # Scale around the smooth head centre in world space. Moving a +Z visor
+    # forward can free the nose, but consumes rear clearance. A rearward move
+    # can help with slanted geometry, so validate both signs against all samples.
+    displacements = (0.0, 2.0, -2.0, 4.0, -4.0, 8.0, -8.0, 12.0, -12.0)
+    for factor in (1.0, 1.025, 1.05, 1.08, 1.12, 1.18, 1.25, 1.32):
+        position = pivot + _scaled_vector(seed.position - pivot, factor)
+        scale = seed.scale.x * factor
+        for shift in displacements:
+            if factor == 1.0 and shift == 0.0:
+                continue
+            candidate = evaluated(Transform3D(
+                position=Vec3(position.x, position.y, position.z + shift),
+                rotation=seed.rotation,
+                scale=Vec3(scale, scale, scale),
+            ))
+            if rank(candidate) < rank(best):
+                best = candidate
+        if best.converged:
+            return best
+    return best
+
+
+def _scaled_vector(vector: Vec3, factor: float) -> Vec3:
+    return Vec3(vector.x * factor, vector.y * factor, vector.z * factor)
